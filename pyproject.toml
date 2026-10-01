@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "context-tree"
+version = "0.1.0.dev0"
+description = "Task-structured history indexing and selective context assembly for agents"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["requests>=2.31,<3"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Programming Language :: Python :: 3",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+[project.scripts]
+context-tree = "context_tree.pipeline.cli:main"
+context-tree-benchmark = "context_tree.tools.benchmark_models:main"
+context-tree-export = "context_tree.tools.export_obsidian:main"
+context-tree-check = "context_tree.tools.check:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools]
+include-package-data = false
