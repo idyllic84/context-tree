@@ -1,4 +1,4 @@
-"""Execution context (concept model v2, 5.2 items 2 and 3; implementation plan S5).
+"""Execution context (concept model v2, 5.2 items 2 and 3).
 
 A new executor gets an initial context assembled from memory as known at dispatch time, in a fixed order (stable parts first
 for prompt caching, this dispatch's parts last). Its scope is the task's own scene: the path from the root to the task (and the

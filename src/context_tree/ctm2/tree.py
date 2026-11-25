@@ -131,7 +131,7 @@ class Tree:
 
 
 class StoreTree(Tree):
-    """Tree view over the persistent store (implementation plan S0): every structural change is written to the store with
+    """Tree view over the persistent store: every structural change is written to the store with
     its time and source; notes are rebuilt from the stored segments and progress when loading."""
 
     def __init__(self, store):

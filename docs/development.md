@@ -22,8 +22,8 @@ No release or PyPI availability is implied by the project name or version. The c
 
 ## Layout
 
-The design is the [CTM concept model](ctm-concept-model.md); which concept items are wired into the running flow is section 2 of the
-[implementation plan](ctm-implementation-plan.md). The history of earlier designs and code is in [evolution](evolution.md).
+The design is the [CTM concept model](ctm-concept-model.md); which concept items are wired into the running flow, and how each was
+evaluated, is in [implementation status](implementation-status.md). The history of earlier designs and code is in [evolution](evolution.md).
 
 - `src/context_tree/ctm2/`: CTM itself. `store.py` (SQLite items, edges and events with valid time and replacement), `tree.py`, and one module
   per part of the message flow: `ref.py` (pointing and objects), `candidates.py`, `deliver.py`, `remember.py` (memory writes and replacement checks),
@@ -35,8 +35,8 @@ The design is the [CTM concept model](ctm-concept-model.md); which concept items
 - `src/context_tree/common/`: model transport (`llm.py`), credentials (`auth.py`) and the data directory (`config.py`).
 - `src/context_tree/tools/auth.py`: the credential tool behind `context-tree-auth`.
 
-Prompts keep their earlier versions next to the current one (`PROMPT_V..`) so that evaluations can compare; the current one is the module's
-`PROMPT` (or the constant named in the implementation plan).
+Each prompt exists in its current version only (the module's `PROMPT`, or `REPLACE`, `STRUCTURE`, `GOALS`, `ROUTE`); a candidate under
+evaluation is passed in as a parameter. Earlier versions and their evaluations are in [block evaluations](block-evaluation.md) and the git history.
 
 ## Running the pilot
 
@@ -75,6 +75,6 @@ python -m context_tree --root <copy> --port 8799
 python tests/browser_pilot_ui.py
 ```
 
-## Before public release
+## Private data
 
 Session records, CTM directories, credentials and evaluation data are private and stay outside Git.

@@ -1,7 +1,7 @@
 # Evolution of Technology Choices and Processing Logic: Difficulties and Decisions (2026-04 to 2026-11-23)
 
 This document records **what blocked the project at each step, what options existed, why a particular choice was made, and how its costs later became apparent**. It was written before the historical archives were cleaned up; the archives were deleted at the user's request on 2026-11-23,
-and this document has been the reference since then. For the current design, the authoritative sources remain the [CTM Concept Model](ctm-concept-model.md), [Goals and Method](goals-and-method.md), and [Implementation Plan](ctm-implementation-plan.md).
+and this document has been the reference since then. For the current design, the authoritative sources remain the [CTM Concept Model](ctm-concept-model.md), [Goals and Method](goals-and-method.md), and [Implementation Status](implementation-status.md).
 
 Sources: Section 1 and the beginning of Section 2 are taken from the original research and development log and development log preserved in the 10-01 commit (`git show b3d83e1:docs/history/companion-v2-research-log.md`,
 `docs/development-log.md`); the rest of Section 2 is taken from records of direction corrections, for which the original turn records have been deleted and only the conclusions retained; Sections 4–6 are taken from the current documents and the execution records in Section 7 of the implementation plan.
@@ -212,7 +212,7 @@ So that the pilot trial has the user's work from the start, `bootstrap` batch-im
 - **Difficulty three: what counts as an improvement.** The user required that improvements show benefits on data not used to find errors, and that they be explainable in terms of use and cost; the content of the prompts came from “who reads the output, what they use it for, and how costly each kind of error is.”
   This ruled out many changes that were “effective on the diagnostic set.”
 - An earlier approach was layered annotation evaluation (starting 10-28: three layers of material were organized from history, and the annotation rules were frozen after three rounds of spot checks by the user), later replaced by the independent block evaluation above;
-  its plan, progress, annotation instructions, and the evaluation summary after block-by-block optimization across eight blocks on 11-10 were deleted on 2026-11-25. The conclusions for each block are in section 7 of the [implementation plan](ctm-implementation-plan.md) and in this section.
+  its plan, progress, annotation instructions, and the evaluation summary after block-by-block optimization across eight blocks on 11-10 were deleted on 2026-11-25. The conclusions for each block are in this section, in [block evaluations](block-evaluation.md), and in the execution record of the former implementation plan (git history, commit `91700cd`).
 
 ### 5.3 Several representative choices
 
@@ -279,6 +279,7 @@ A task to “add an available region to a service's configuration” went throug
 
 - Code: `src/context_tree/ctm2/` (mainline), `src/context_tree/pilot/` (pilot and import), `src/context_tree/common/` (model calls, credentials, data directory), `tools/auth.py`;
   tests `tests/test_ctm2_*.py`, `tests/test_pilot*.py`, `tests/test_auth.py`, `tests/browser_pilot_ui.py`.
-- Design and method: [CTM Concept Model](ctm-concept-model.md), [Goals and Method](goals-and-method.md), [Implementation Plan](ctm-implementation-plan.md),
-  [Block Interfaces](block-interfaces.md), [Block Plan and Results](blocks-3-6-plan.md), this document; see the [Documentation Index](README.md) for the other current documents.
-- The original design and research and development logs from before 10-01 can still be retrieved from git commit `b3d83e1` (`docs/history/`).
+- Design and method: [CTM Concept Model](ctm-concept-model.md), [Goals and Method](goals-and-method.md), [Implementation Status](implementation-status.md),
+  [Block Evaluations](block-evaluation.md), this document; see the [Documentation Index](README.md) for the other current documents.
+- The original design and research and development logs from before 10-01 can still be retrieved from git commit `b3d83e1` (`docs/history/`); the implementation plan with its execution record (S0–S10, the rounds of
+  spot checks, blocks A–G) and the plan for blocks 3–6 from commit `91700cd`.

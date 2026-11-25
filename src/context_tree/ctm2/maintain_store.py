@@ -1,4 +1,4 @@
-"""Maintenance over the store (concept model v2, 5.6; implementation plan S4).
+"""Maintenance over the store (concept model v2, 5.6).
 
 Reads what was written since its last run - message segments and run summaries with the node each was placed on - and
 re-checks root-level nodes that could not yet name a service relation. Besides the V2 operations (set_parent,

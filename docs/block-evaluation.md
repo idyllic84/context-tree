@@ -1,37 +1,73 @@
-# Independent Evaluation and Optimization Plan for Blocks 3–6 (2026-11-19)
+# Block Evaluations
 
-The processing flow is divided into 8 blocks (1 delivery, 2 tree organization, 3 memory write, 4 execution context, 5 executor interaction, 6 work status and lifecycle, 7 answering queries, 8 communication with the user).
-Blocks 1 and 2 can already be evaluated independently; the self-assessment of blocks 3–6 (2026-11-19) is that the mechanisms are broadly usable, but the evaluation methods, labels, or boundaries are insufficient for independent optimization. This plan first establishes the evaluations, then optimizes each block.
-The results are written into Section 7 of the [implementation plan](ctm-implementation-plan.md), and the block divisions are written into Section 3.4 of [Goals and Method](goals-and-method.md).
+> Blocks, their interfaces, and the evaluations behind the current version of each block, including the versions that were
+> rejected. Prompt versions and switches named in the records were removed from the code on 2026-11-25 unless they are the current
+> ones listed in [implementation status](implementation-status.md). The earlier plan for blocks 3–6, the block states of 11-20 and
+> the assembly walkthrough are in the git history (commit `91700cd`); their conclusions are in [evolution](evolution.md) section 6.
 
-## Common Rules
+Blocks are divided by **judgment** ([Goals and Method](goals-and-method.md) 3.4). Blocks do not call each other directly; **they hand off only through shared memory**: each block reads some entries and relations and writes others;
+what it writes is its interface. A single call can produce results for several blocks (delivery, maintenance, writeback), but each block's part of the output is a separate field, evaluated separately against its own annotations.
+Parts executed by code according to rules (constraints inherited along the tree, successors becoming executable after prerequisites are complete, results folded upward, degradation according to budget) are not judgment blocks; unit tests ensure their correctness.
 
+## Shared Memory (Data Used by the Interfaces)
+| Category | Entry or relation | Writer | Reader |
+|---|---|---|---|
+| Original conversation text | `turn` (the user's words, the executor's reply), `segment` (part of a message, `about` the work to which it is delivered) | Delivery | All |
+| Work | `task`, `goal` (title, purpose, working directory, status); relations `child`, `dep` (sequence), `uses` (reference), `serves` (research serves work) | Work relations, status | Delivery, memory write, execution context, status, answering queries |
+| Requirements stated by the user | `constraint`, `decision` (including rejected and questioned decisions), `guidance`, `environment`; `about` attachment location; `replaces` replacement relation | Memory write | Execution context, answering queries, delivery (objects for candidates) |
+| Execution results | `run`, `exchange`, `progress` (done／changed／verified／open／failed), `result` (folded result), file versions, documents | Result writeback | Execution context, status, answering queries, delivery (recent displays) |
+| Queries | `query` (question, answer, basis) | Answering queries | Execution context (questions asked), delivery (recent queries) |
+| Shown to the user | `display`, `notice`, `pending` | Relay | Delivery (which recently displayed item the user is responding to) |
+
+Each entry carries its write time, source (user, CTM, maintenance, interface), and the entry that replaces it; readers read by time (`at`), giving the executor only current entries and marking history as historical.
+
+## The Blocks
+| Block | Trigger | Reads | Writes (interface) | Consumers | Must guarantee | Reference input for independent evaluation | Code |
+|---|---|---|---|---|---|---|---|
+| 1 Delivery | Every user message | Message, recent conversation, current task, recent displays and pending items, candidate work | Each segment's destination `to` (existing／new／side／research／control／ask／chat) and `node`; recorded as `segment about node` | Memory write, execution context (target work), executor interaction (dispatch), answering queries (side questions) | The user's selection and original words take precedence over inference | Reference memory built from annotations and the current task | `ref.py`, `candidates.py`, `deliver.py` (`to`, `node`) |
+| 2 Work relations | New work appears (provided in a delivery call); delivery provides a structural signal; periodic maintenance | Titles, purposes, and original words for work, existing tree and Goals | New work's title, purpose, working directory, `parent`, `after`→`dep`, `goal`, `uses`; grouping from structure judgment; Goal assignment; moves and merges in maintenance; subtasks proposed by the planner | Memory write (attachment paths), execution context (paths, siblings, references), status (dependencies), delivery (candidates) | Every relation written must be true; the tree has no uniquely correct shape | A set of known work and relations provided by the system | `deliver.py` (`new`), `maintain_store.structure`, `assign_goals`, maintenance notes, `planner.py`, working directory judgment |
+| 3 Memory write | Every user message (after delivery) | Message, delivery result, recent conversation, current entries | `constraint`／`decision`／`guidance`／`environment` and their attachment locations and types; replacements; behavior guidance documents; judgment on whether new work inherits sibling constraints; constraint lifts and rollbacks in maintenance | Execution context, answering queries, delivery | Faithful to the original words; each thing is recorded in only one place; replacement only when the old entry no longer holds as a whole | Reference delivery and reference tree | `remember.py`, `scope.py`, `documents.py` (behavior guidance) |
+| 4 Execution context | Dispatching a new executor; forwarding a message to an existing session | Paths, siblings, references, potentially relevant conclusions elsewhere in memory, recent conversation, document index | Context text for the executor (including entries it can ask CTM about), message forwarded to the original session | Executor | Small but sufficient; only current entries; user's original words are not rewritten | Frozen reference memory | `context.py` |
+| 5 Result writeback | Every executor reply | User request, executor reply, execution trace | Five `progress` fields; `exchange` and file versions; long content stored in documents | Execution context, status, answering queries, relay | Every sentence has a basis; nothing needed to take over is omitted | Executor's reply | `progress.py`, `writeback.py`, `documents.py` |
+| 6 Execution control | Executor stops | Reply at the stop, user's original words, execution contract | Stop type and action (continue, allow, answer on its behalf, report); whether formally complete | Executor interaction, relay | Allow only what the user's original words have authorized; report irreversible actions | Recorded stops | `control.py`, `execution.py` |
+| 7 Status | Periodic maintenance (work untouched for a long time); user changes it in the interface | Work records and whether work was continued afterward | `task.status` events (time, reason, source) | Delivery (work in progress), execution context, dependencies (code) | Executor saying it is done ≠ task completion; self-reports and verification are separate | Reference records of work and annotated follow-up | Status section of maintenance notes V11, `lifecycle.py` |
+| 8 Answering queries | Side questions; executor asks CTM | Question, records of the work line in which the question was asked | Answer (with basis and old or current status marked) and `query` entry; whether to use memory or dispatch read-only execution | User (query panel), executor, execution context, delivery | History marked as historical; say "I don't know" when information is absent | Memory and questions | `recall.py`, `query.py` |
+| 9 Relay | Execution complete, when the user is needed | Execution results, pending items | `display`／`notice`／`pending`, with numbers and associated tasks | User, delivery | User can refer to items; nothing requiring the user is omitted | — | `relay` (`pipeline.py`) |
+
+## Where One Call Produces Results for Several Blocks
+| Call | Output | Assigned to |
+|---|---|---|
+| Delivery (`deliver`) | `to`, `node` | Block 1 |
+| | Title, purpose, `parent`, `after`, `goal`, `uses`, `same_work_as`, `plan` of `new` | Block 2 |
+| Maintenance (`maintain_store`) | Moving, merging, grouping, attaching research | Block 2 |
+| | Lifting and rollback of constraints | Block 3 |
+| | Status | Block 7 |
+| Write-back (`on_reply`) | Progress summary | Block 5 |
+| | Whether conditional dependencies are satisfied (judged in the same summary) | Dependency relationships in block 2, used by status |
+
+## Mechanisms Whose Assignment Is Settled Here
+- Judgment of the working directory and subtasks proposed by the planner: part of the definition and composition of new work, assigned to block 2.
+- Whether new work inherits constraints from siblings, and the lifting of constraints in maintenance: judging which work a requirement covers, assigned to block 3.
+- Whether to continue with the original session or start a new one, and read-only branches: dispatch methods, assigned to block 5 (executor interaction); use reference delivery for evaluation.
+- Documents: long-form content of execution results belongs to block 5; behavior guidance belongs to block 3.
+- User changes in the interface: the highest-authority input. Synchronize four aspects according to concept 5.5. This is not a judgment block; unit tests ensure it.
+
+## Not Yet Evaluated or Settled (noted 2026-11-20, still open)
+
+- Recall in block 2 (omitted references) is the source of block 4 missing conclusions from other work. It must be resolved in block 2; the approach of retrieving other work by similarity during assembly has been withdrawn (it bypasses work relationships).
+- Block 3’s `environment` (facts) has not yet been annotated or evaluated.
+- Block 5’s dispatch method (whether to continue with the original session or start a new one) has only been examined using the system’s own deliveries. It should use reference delivery instead.
+- Block 6 has only been evaluated on stop classification; the formal completion check has not been evaluated.
+- Block 9 can only be evaluated in real use.
+
+## Evaluation Rules
 - **Paired**: The groups being compared face the same set of items. A judge first lists the items (information needed, content to be restated, constraints that should be present) **without seeing the outputs under test**, then judges each group item by item.
   The practice of having a judge list items while looking at and judging the outputs under test (`fresh`, `restate` on 2026-11-18) is no longer used for comparisons.
 - **Judges**: opus and terra; only items on which both agree count. Labels from a single judge (including grok in earlier evaluations) are for reference only and are re-annotated when used.
 - **Data**: The user's data from the week of 11-13 (w1113) is used for development and diagnosis; the user's subsequent new data (`auto_eval.py daily`) and unused public data are used for testing; each modification is measured on unused data.
 - **Metrics tied to consequences**: Besides “was it recorded, was it provided,” also check whether it reached the executor it should reach, whether it was carried into unrelated work, and whether it helped the executor act correctly.
 
-## Redivision of Blocks and Evaluations (2026-11-19, supersedes the 8 blocks at the start of this document)
-
-Divide blocks by judgment, with upstream blocks providing reference inputs; see [Goals and Method](goals-and-method.md) 3.4. The following previous evaluations depend on other blocks, so they **are now used only for monitoring**. Their conclusions await retesting with reference inputs:
-
-| Previous evaluation | Blocks involved | Treatment |
-|---|---|---|
-| Tree organization measured by constraint delivery (`cover`, `cons`) | Memory attachment level, context assembly | Block 2 switches to precision and recall of relationship judgments |
-| Execution context (`fresh_pair`, `fresh_prog`, `fresh_where`) on replayed memory | Delivery, tree, memory, progress summaries | Block 4 retested on frozen reference memory; the 32,000 budget and “16% under other Goals” await confirmation |
-| Judged too early (`status_hind`) | Delivery | Block 7 switches to annotated subsequent events |
-| Whether a successor was linked (`link_check`) | Delivery (references are established by delivery) | Moved into block 2 |
-| Session selection (`session_choice`) | Delivery | Switches to annotated destinations |
-
-Memory write coverage (`reach_b2`) uses the reference tree and the data model's inheritance rules and does not depend on other blocks, so it is retained.
-
-### New task order
-1. Block 4: Build frozen reference memory and retest the conclusions about execution context.
-2. Block 2: Have two judges annotate relationships between pairs of work items; measure the precision and recall of the new work placements given by delivery, structure judgments, Goals, and references.
-
-## Independent Evaluation under the New Block Division (2026-11-19)
-
+## Evaluations by Block (from 2026-11-19)
 **Block 4, execution context, on frozen reference memory** (`blk4.py run|where <win>`: block A's reference memory—delivery and tree construction according to annotations, and the original exchanges—plus block B2's frozen V6 items and frozen V4 summaries within the window;
 a test point is the first appearance of a work item in a real session that already has prior messages; needed information is listed only from the real session and accepted by both judges). Four windows, 61 points, 232 items, 191 agreed items:
 **present 57%, partial 34%, absent 9%**, with a median context of about 10,000 characters. Of the gap from the 31–44% measured on replayed memory, most came from upstream (misdelivery, tree, memory), not assembly.
@@ -265,41 +301,7 @@ When a question is asked, there is a wait for the answer from memory (argon, 19.
 - **Run stop classification and progress summary concurrently after the executor answers** (`pipeline.PARALLEL_STOP`): Stop classification needs only the contract and the end of the response. Both only call the model and do not read or write memory.
   Ran each twice on the same real response: serial 15.1, 17.8 seconds; parallel 12.3, 13.7 seconds (total time equals the progress summary alone), reducing the wait after each response by about 2 seconds.
 
-## Method for Improvement (2026-11-19)
-
-- Leave judgments that the model can make to the model. Code only stores, passes, and limits resources; derive the content of instructions from “who reads this output, what they use it for, and the cost of each kind of error,” not from observed errors, and do not include examples from those errors.
-- Evaluate intermediate products by their actual downstream use: for progress summaries, check whether they contain the information later executors actually need (`summary_use`); for constraints, check delivery; for status, check the user's subsequent behavior.
-- Keep data used to find causes of errors separate from test data; run the same configuration twice to check variation; compare versions using only judgments the two judges agree on; metrics with low judge agreement (such as “whether it fabricates,” often with more than ten disagreements out of 40 items) cannot distinguish versions that differ by a few items; choose based on principles in such cases.
-- An improvement must meet both conditions: it gains on data not used to find causes of errors, and it can be justified in terms of use and cost.
-
-## Tasks (in order)
-
-### 1. Block 4 executor context: correct the measurement, remeasure the effect of filling in sibling context
-- `fresh_pair`: For each new executor, opus lists information from previous conversations that the actual executor used (looking only at this message, the actual response, and content before the session), terra confirms item by item whether it was actually needed, and retain items both agree on;
-  then each independently judges whether each item is complete, partial, or absent in each context group, counting only agreed items.
-- Remeasure the old assembly method and filling in sibling context (reconstructed by point in time, paired): all new executors in w1113, plus new executors in each replay; target ≥40 points.
-- Acceptance: the direction and magnitude of the difference between the two groups, and what is “absent” in each; the conclusion replaces the 11-18 “40%→52%” statement.
-- Afterward (separately): take some points for an end-to-end evaluation—executors each write an execution plan with both contexts, and evaluate correctness against after-the-fact evidence.
-
-### 2. Block 3 memory write: add consequence metrics and missing paths
-- Consequence metrics: for each newly recorded constraint, which work receives it because of its location; two judges determine which work it should apply to (using the `cover` method for each item), yielding “should have reached but did not” and “reached but should not have.”
-- Use opus and terra to re-annotate the four windows in block B (constraints, decisions, replacement pairs), and add a category for facts (environment, location, identifiers).
-- Evaluate import (`bootstrap.SEG`) and memory during operation by the same standards: type (constraint, guidance, behavior guidance, global, one-time only) and location.
-- Object constraints: the part that writes them to files can only be tested in a pilot trial or sandbox; mark it as unevaluated for now.
-
-### 3. Block 6 work status and lifecycle: define boundaries, build a test set
-- Boundary: one entry point is responsible for status judgment, dependencies and successors, folding upward, and rechecking after a decision is overturned (maintaining V11 status judgment and `lifecycle`); clearly specify inputs and outputs.
-- Test set: take real scenarios from replays—successive work (whether the successor can be executed after the predecessor ends and receives the predecessor's results), replaced decisions (whether references to them are marked for rechecking), completion judgments (43 agreed annotations already exist; expand them).
-- Either integrate the judgment of parent task completion into the runtime flow or revise it in the concept, and explain why.
-
-### 4. Block 5 executor interaction: split up and evaluate separately
-- 5a Continue using the original session or start a new one: use the user's subsequent words as after-the-fact evidence (a continuation sent to a new session, a new step inserted into an old session).
-- 5b Execution control layer stop classification: E7 already exists (190 agreed annotations); keep it.
-- 5c Progress summary: retest fabrication, omissions, and verification annotation on unused data with two judges.
-- 5d Parts requiring real executors (constraint compliance, questions to CTM, formal completion checks, budget stops): design a plan for redoing historical tasks in a sandbox, specify the cost, then decide whether to do it.
-
-## Progress (2026-11-19)
-
+## Further Evaluations (from 2026-11-19)
 **Task 1 complete** (`auto_eval.py fresh_pair <w> <run>`): 35 points, 106 items of needed information agreed on by both judges. Before filling in sibling context, present／partial／absent 31%／48%／20%; after filling in, 43%／45%／12%;
 “absent” for the user's work this week went from 32%→15% for r1 and 19%→16% for r4, with almost no change for aider. The conclusion replaces the original “40%→52%.” Most of what remains is “partial”: details are in long responses but not written in the progress summary—the direction for block 4's next step (connected to the 5c progress summary).
 
@@ -408,6 +410,3 @@ block A earlyg differs from V11 by no more than one or two items in each categor
 **Causes of errors in block 4** (`auto_eval.py fresh_where <w> <run>`: identify which earlier message needed information that is only partially present or absent came from, with both judges agreeing, then examine the relationship between that message's work and the new work): Of approximately 45 items in the user's r1 and r4 this week,
 19 came from executor responses in sibling work, 14 from executor responses in work under other Goals, 11 could not be determined, 0 from the same work, and 0 from the user's words. All the missing information consists of details in executor responses: these depend on progress summaries (V4 has been adopted) and the original text of sibling exchanges;
 those under other Goals can only be obtained through cross-task references or by the executor asking.
-
-## Out of scope for this plan
-Blocks 7 and 8; continued optimization of delivery and tree organization; user pilot trial.

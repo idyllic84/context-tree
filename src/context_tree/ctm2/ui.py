@@ -1,4 +1,4 @@
-"""User edits in the UI (concept model v2, 1.2 tree UI, 5.5; implementation plan S9).
+"""User edits in the UI (concept model v2, 1.2 tree UI, 5.5).
 
 Every edit is authoritative and is applied with four kinds of propagation: memory relations (messages, constraints,
 decisions follow), running executors (affected ones are updated, an abandoned task's executor is stopped), pending items

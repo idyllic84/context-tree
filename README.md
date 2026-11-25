@@ -35,7 +35,7 @@ Licensed under the [MIT License](LICENSE).
 7. Periodic maintenance revisits the tree with hindsight (merges, re-parenting, statuses, lifting shared rules).
 
 The full model is [docs/ctm-concept-model.md](docs/ctm-concept-model.md); what is implemented and how each part was
-evaluated is section 2 of [docs/ctm-implementation-plan.md](docs/ctm-implementation-plan.md).
+evaluated is in [docs/implementation-status.md](docs/implementation-status.md).
 
 ## Layout
 
@@ -91,5 +91,5 @@ run it against a copy of a CTM directory; see [docs/development.md](docs/develop
 ## Documentation
 
 Start with [docs/README.md](docs/README.md): the concept model, goals and method (including the planned direction and its order),
-the implementation plan, block evaluations, related work and the history of design choices. See also
+the implementation status, block evaluations, related work and the history of design choices. See also
 [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).

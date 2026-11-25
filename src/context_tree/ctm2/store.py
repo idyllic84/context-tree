@@ -1,4 +1,4 @@
-"""CTM memory store (concept model v2, sections 3.1 and 4; implementation plan step S0).
+"""CTM memory store (concept model v2, sections 3.1 and 4).
 
 One SQLite database holds every memory item and relation with its times and its source:
   items  - work nodes (goal, task), conversation records (turn, segment, display), query, run, document and its versions,

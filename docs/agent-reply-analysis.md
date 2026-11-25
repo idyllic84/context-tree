@@ -5,7 +5,6 @@
 > and only summaries and anonymized relays are given here.
 
 ## 1. Method
-
 - Data: Agent final replies from 15,031 user turns (excluding tool output), from 415 sessions. Median reply length was about 800 characters,
   and the 90th percentile was about 2,900 characters; 40% had headings or tables; the median number of tool calls was 3, and the 90th percentile was 19.
 - Open coding: 80 replies (at most 3 per session). The model freely named information units and explained who would need them later; 15 categories and attribute dimensions were then derived.
@@ -14,7 +13,6 @@
 - Long-term needs: For each of 78 long-term state questions, it was determined whether the information in the reference answer came from user messages or agent replies, and, for information from replies, its category and position.
 
 ## 2. What Replies Contain
-
 | Type | Units | Share of characters | Main position | Corrected later | Followed up on |
 |---|---:|---:|---|---:|---:|
 | Technical mechanisms and interface semantics | 448 | 21.6% | Middle 61% | 25 | 85 |
@@ -43,13 +41,11 @@ Attribute distribution (2,633 units):
 - Retention period: task period 38%, version period 31%, short-term troubleshooting 14%, no retention needed 9%, audit only 6%, long-term core 3%.
 
 ## 3. What Is Needed Later
-
 The 78 long-term state questions had 313 information sources in total: 46% came from user messages (66 requirements, 46 corrections, 22 decisions), and 54% came from agent replies.
 Of those from replies: 44 technical mechanisms, 34 change records, 32 constraint restatements, 12 plans, 11 corrections, 10 configuration rules, 8 verifications, 7 state snapshots, 5 decisions, and 5 locations.
 Their positions in replies were dispersed (63 at the beginning, 56 in the middle, 51 at the end), and only 30% had been explicitly adopted by the user.
 
 ## 4. What the Next User Message and the Next Execution Turn Actually Use
-
 Sections 2 and 3 only describe what replies contain, not who will use it. The user does not care about every detail in a reply, and the executor does not follow each one.
 Therefore, for 372 sets of “reply → next user message → next agent reply,” the content in the previous reply that was actually used was judged based on what happened subsequently:
 
@@ -62,7 +58,6 @@ Therefore, for 372 sets of “reply → next user message → next agent reply,�
   Typical examples were process updates, restatements of goals, unadopted speculation, line-number-level details, and conceptual explanations.
 
 ## 5. Conclusions
-
 1. **Most of a reply is unused later**: In 56% of replies, most or almost all content is used neither to understand the user’s next message nor in the next execution turn.
    Process updates, restatements of goals, speculation that no one follows up on, line-number-level details, and conceptual explanations are the most common.
 2. **The user cares about the one or two points they refer to**: 85% of next messages depend on the previous reply, but each depends on only about 1.2 points on average, mostly for reference, follow-up, rejection, checking, or approval.
@@ -71,7 +66,6 @@ Therefore, for 372 sets of “reply → next user message → next agent reply,�
 5. **Knowledge of long-term value** (mechanisms, rules, design conclusions) is distributed in the middle of replies and is suited to being consolidated in documents that can evolve, rather than split into numerous entries or left in the conversation.
 
 ## 6. Handling in CTM
-
 | Stage | Handling |
 |---|---|
 | Output convention (written in the execution contract) | Write long content into documents; replies to CTM contain only brief results: what was done, which documents and files were updated, verification status, unresolved issues, and matters requiring user decisions |
@@ -79,14 +73,3 @@ Therefore, for 372 sets of “reply → next user message → next agent reply,�
 | Relay to the user | Relay only what the user needs to know or decide: completion, blockers, deviations from expectations, and pending items; number the items for reference; state which conclusions are supported by traces |
 | User's response | Apply it to the item pointed to: approval becomes a decision, rejection becomes a rejected proposal and the new statement is recorded, and follow-up questions become pending items |
 | Other details | Leave them in documents and execution evidence, to be retrieved when needed or read by the executor itself |
-
-## 7. Prototype comparison (first 140 turns of two trajectories, summarized from private data; predates the current concept model)
-
-| Write-back method | Model calls per turn | Input tokens per turn | Output tokens per turn | Long-range detail questions (15 questions at 5 comparable checkpoints) |
-|---|---:|---:|---:|---|
-| Split the entire reply into knowledge entries as soon as it arrives (early approach) | 3.1 | 1.1–1.7 ten thousand | about 1300 | 12 correct, 2 partially correct, same as the research version G2 |
-| Retain only the points the user pointed to and those needed to continue work | 2.2 | 0.9–1.2 ten thousand | about 800 | 9 correct, 5 partially correct |
-
-Across 6 checkpoints and 18 questions: full history got 17 correct, G2 got 15 correct, and retaining only key points got 9–11 correct (two ratings of the same answers differed by 2 questions). Creating retrievable knowledge entries for key work points as well did not change the result.
-Retaining only key points used about 30% less maintenance cost; what was lost was mainly settled interface and configuration details (for example, an interface does not accept a sampling rate parameter, and neither of two environment configurations adds a certain field),
-most of which were judged “partially correct” rather than incorrect. The long-range detail questions were generated by a model and emphasized details, and this comparison used replay of history within a session. In the current design, such settled interface and configuration details should become object constraints or content in documents (see concept model 3.5, 3.6), rather than relying on extraction from replies.

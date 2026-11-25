@@ -7,7 +7,7 @@ rather than current instructions; the archives themselves were removed on 2026-1
 
 - Design (authoritative): `docs/ctm-concept-model.md`. Goals, metrics, method and the block-wise optimization plan:
   `docs/goals-and-method.md`. Implementation status, evaluation results and current model choices:
-  `docs/ctm-implementation-plan.md`. Map: `docs/README.md`.
+  `docs/implementation-status.md`; block evaluations: `docs/block-evaluation.md`. Map: `docs/README.md`.
 - Mechanisms are described in the concept model, not here. Replace rather than append in design documents; record superseded approaches
   and adverse results in `docs/evolution.md` and repair links.
 
@@ -47,7 +47,7 @@ rather than current instructions; the archives themselves were removed on 2026-1
   as examples. A prompt is not a list of rules: it describes the situation, what the relations mean and how they are used, gives the
   information the analysis needs, and asks the model to analyse the relations between the nodes in context before it decides (the
   analysis comes first in the output). A rule added to stop one observed error is code in disguise and fails on the next case.
-- Models are chosen per role by measurement (current choices in the implementation plan). No sol models in CTM; evaluation annotators
+- Models are chosen per role by measurement (current choices in `docs/implementation-status.md`). No sol models in CTM; evaluation annotators
   and judges are independent of the systems under test, with sol used only as a judge when the user asks. Token budgets follow each
   model's real limits and count the complete call.
 
@@ -68,7 +68,7 @@ rather than current instructions; the archives themselves were removed on 2026-1
 
 - `src/context_tree/ctm2/` is the mainline implementation of the concept model; `src/context_tree/pilot/` runs it as a local page
   with pi sessions as executors. Offline tests are `tests/test_ctm2_*.py` and `tests/test_pilot*.py`. Which concept items and user
-  requirements are wired into the running flow, and how each was evaluated, is the table in section 2 of the implementation plan;
+  requirements are wired into the running flow, and how each was evaluated, is the table in `docs/implementation-status.md`;
   keep it current. The code keeps only the current version of each flow and prompt, plus at most one candidate under evaluation
   (passed in as a parameter, not a flag); earlier versions and options not adopted live in the evaluation records and version
   history. The earlier packages were removed on 2026-11-23, the first message flow of `ctm2` on 2026-11-25.

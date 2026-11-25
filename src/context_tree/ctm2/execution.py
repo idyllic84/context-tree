@@ -1,4 +1,4 @@
-"""Executors and the execution-control layer (concept model v2, 5.2 items 1, 2, 4, 5, 6; implementation plan S6).
+"""Executors and the execution-control layer (concept model v2, 5.2 items 1, 2, 4, 5, 6).
 
 Lifecycle: a task gets a new executor (a run) with a contract and a small initial context the first time it is executed;
 afterwards it keeps using that session, which normally never ends - however long the pause, even after a completion report

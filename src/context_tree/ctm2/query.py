@@ -1,4 +1,4 @@
-"""Queries (concept model v2, 5.3; implementation plan S8).
+"""Queries (concept model v2, 5.3).
 
 A segment CTM judged to be a query (unclear cases are treated as queries and said so) creates no node. CTM answers from
 memory when memory holds the answer (decisions, progress, documents, run evidence of the related work line, the root);

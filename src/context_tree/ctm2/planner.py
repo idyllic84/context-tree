@@ -1,4 +1,4 @@
-"""Planner (concept model v2, 3.4 task sources and proposals, S5 scenario; implementation plan: planning is part of the
+"""Planner (concept model v2, 3.4 task sources and proposals, S5 scenario; planning is part of the
 design; real use is evaluated in runtime integration).
 
 CTM calls the planner for larger work ("design first, then implement, open a PR once the tests pass"). Planned subtasks and their dependencies appear

@@ -9,7 +9,7 @@ The goal is a small but sufficient context for each execution, correct localizat
 
 ## Work within a block
 
-CTM's judgments are divided into blocks ([block interfaces](docs/block-interfaces.md)). A change to one block is evaluated on its own,
+CTM's judgments are divided into blocks ([block evaluations](docs/block-evaluation.md)). A change to one block is evaluated on its own,
 with reference inputs from the blocks upstream; end-to-end runs only find problems. Put model calls in `common/llm.py` (through `ctm2/model.py`);
 do not add private clients or credential discovery elsewhere.
 

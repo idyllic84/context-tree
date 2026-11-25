@@ -1,4 +1,4 @@
-"""The root (global layer) of the tree (concept model v2, 3.3; implementation plan S9).
+"""The root (global layer) of the tree (concept model v2, 3.3).
 
 Holds what belongs to no Goal and stays valid long term: the persona and CTM's understanding of the user (CTM-only,
 always present, bounded), overall goals and priorities (interpretation only, never authority to act), explicit

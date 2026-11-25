@@ -1,4 +1,4 @@
-"""Views generated from memory (concept model v2, 1.2 and 3.7; implementation plan S9 - UI itself is deferred).
+"""Views generated from memory (concept model v2, 1.2 and 3.7).
 
 The UI is only a view of the same memory: the task metadata page (purpose and scope, working directory, status and its
 history, constraints and decisions, progress, relations, execution records, related documents), the task exchange record

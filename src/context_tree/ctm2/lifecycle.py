@@ -1,5 +1,4 @@
-"""Task lifecycle (concept model v2, 3.4 status and relations, 3.6 cross-task references, section 4 phases and timing;
-implementation plan S3).
+"""Task lifecycle (concept model v2, 3.4 status and relations, 3.6 cross-task references, section 4 phases and timing).
 
 Status changes are events with time, reason and source; time passing alone never changes a status. Dependencies
 (serial, join, conditional, alternative) decide when a task becomes executable; a predecessor whose result is overturned

@@ -81,7 +81,7 @@ attribute them to a block, and then confirm and improve them using that block's 
 | 8 Answering queries | Whether to answer from memory or dispatch read-only execution, and whether the answer is correct | Memory and questions | Probe questions generated from records and scored by two people |
 | 9 Relay | What to tell the user, how to number it, and which alternatives to offer | — | Can only be tested in real use |
 
-See [Boundaries and Interfaces of the Blocks](block-interfaces.md) for the data each block reads and writes and its users; the current state, commands, and results are recorded in [Plan for Blocks 3–6](blocks-3-6-plan.md) and section 7 of the implementation plan.
+See [block evaluations](block-evaluation.md) for the data each block reads and writes, its users, and the commands and results of its evaluations.
 
 ### 3.5 Automated Evaluation
 

@@ -1,5 +1,5 @@
 """Documents, files and objects (concept model v2: 3.1 Document/FileVersion/object nodes, 3.5 object constraints,
-3.6 documents, 3.7 links; implementation plan S7 and the S1 gap "files produced by a run are linked to the task").
+3.6 documents, 3.7 links; files produced by a run are linked to the task).
 
 - Files: every file an executor wrote or edited (from its trace) becomes a file version produced by that run, linked to the
   previous version of the same path and to the task (involves). The working directory is the boundary; branches and

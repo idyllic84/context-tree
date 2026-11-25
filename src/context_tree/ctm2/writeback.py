@@ -1,4 +1,4 @@
-"""Write-back of an executor reply into the store (implementation plan S1; concept model v2:
+"""Write-back of an executor reply into the store (concept model v2:
 5.1 step 2, 5.2 item 6, 3.4 task content, 3.5 constraint placement, 3.6 decisions, section 4 replacement).
 
 Reply (concept 5.2 item 6; agent reply analysis): the raw reply is kept as the run's evidence; CTM writes one brief summary

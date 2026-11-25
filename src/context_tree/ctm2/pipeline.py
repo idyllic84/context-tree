@@ -1,4 +1,4 @@
-"""CTM runtime pipeline over the store (concept model v2, section 5; implementation plan S1-S9).
+"""CTM runtime pipeline over the store (concept model v2, section 5).
 
 on_message (5.1, round 7): pointing and objects (ref) -> candidates per pointing mode
 (recent works, live executors / pending items / displays, entity -> object -> works, time) -> delivery (one call; a second

@@ -1,4 +1,4 @@
-"""What CTM says to the user (concept model v2, 5.1 step 4 and 5.4; implementation plan S6).
+"""What CTM says to the user (concept model v2, 5.1 step 4 and 5.4).
 
 Every CTM message is a referable display: pending items and options are numbered and name their task; the user may say
 "the second one" or "ok" and the reference resolves to a concrete item. Only what needs the user goes into the conversation -
