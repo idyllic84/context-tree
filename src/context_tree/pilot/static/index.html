@@ -1,0 +1,1085 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>CTM</title>
+<link rel="icon" href="data:,">
+<style>
+  :root { --bg:#1e1f22; --panel:#26282c; --raise:#2c2f34; --line:#3a3d42; --fg:#dcdfe4; --dim:#9a9fa8; --accent:#5aa9ff; --ok:#5bbf7a; --warn:#e0a84f;
+          --err:#e06c6c; --user:#2f4a6b; --ctm:#2a2d33; --sel:#22406a; --hover:#2f3238; }
+  * { box-sizing: border-box; }
+  [hidden] { display:none !important; }
+  body { margin:0; background:var(--bg); color:var(--fg); font: 14px/1.55 "Segoe UI", "Microsoft YaHei UI", sans-serif; height:100vh; display:flex; flex-direction:column; }
+  header { display:flex; gap:8px; align-items:center; padding:6px 12px; border-bottom:1px solid var(--line); background:var(--panel); }
+  header b { color:var(--accent); }
+  button { background:#33363b; color:var(--fg); border:1px solid var(--line); border-radius:4px; padding:2px 9px; cursor:pointer; font: inherit; font-size:12px; }
+  button:hover:not(:disabled) { border-color:var(--accent); }
+  button:disabled { opacity:.45; cursor:default; }
+  button.primary { background:#244a73; border-color:#36689c; }
+  button.primary.on { background:#245a3a; border-color:#3f8f5a; }
+  button.danger { color:var(--err); }
+  button.link { background:none; border:none; color:var(--accent); padding:2px 4px; font-size:12px; }
+  button.link:hover { text-decoration:underline; }
+  :focus-visible { outline:2px solid var(--accent); outline-offset:-1px; }
+  input, textarea, select { background:var(--bg); color:var(--fg); border:1px solid var(--line); border-radius:4px; padding:4px 7px; font: inherit; font-size:13px; }
+  .sr { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+  .meta { font-size:12px; color:var(--dim); }
+  .tag, .badge { display:inline-block; font-size:12px; line-height:17px; padding:0 5px; border-radius:3px; background:#3a3d42; color:#c3c8cf; white-space:nowrap; flex:none; }
+  .badge.run { color:var(--accent); background:#21354d; animation: blink 1.4s infinite; }
+  .badge.pin { color:#0d1a10; background:var(--ok); }
+  .badge.warn { color:var(--warn); }
+  @keyframes blink { 50% { opacity:.45; } }
+  main { flex:1; display:flex; min-height:0; }
+
+  /* ---- left: the task tree ---- */
+  #left { width:clamp(220px, 24vw, 360px); flex:none; border-right:1px solid var(--line); background:var(--panel); display:flex; flex-direction:column; min-height:0; }
+  #split, #split2 { width:5px; flex:none; cursor:col-resize; margin-left:-3px; z-index:1; }
+  #split2 { margin-left:0; margin-right:-3px; }
+  #split:hover, #split.drag, #split2:hover, #split2.drag { background:var(--accent); opacity:.5; }
+  #treehead { display:flex; gap:6px; padding:6px 8px; border-bottom:1px solid var(--line); align-items:center; }
+  #filter { flex:1; min-width:0; font-size:12px; }
+  #tree { flex:1; overflow-y:auto; padding:4px 4px 16px; }
+  .ti { display:flex; align-items:center; gap:5px; height:26px; padding-right:6px; border-radius:4px; cursor:default; user-select:none; }
+  .ti:hover { background:var(--hover); }
+  .ti[aria-selected="true"] { background:var(--sel); }
+  .ti:focus { outline:none; }
+  .ti:focus-visible { box-shadow: inset 0 0 0 1px var(--accent); }
+  .ti.drop { box-shadow: inset 0 0 0 2px var(--ok); }
+  .ti.dragging { opacity:.45; }
+  .ti .tw { width:16px; flex:none; text-align:center; color:#a3a9b3; font-size:12px; cursor:pointer; }
+  .ti .tw:hover { color:var(--accent); }
+  .ti .title { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .ti.goal .title { font-weight:600; }
+  .ti.cur .title { color:var(--accent); }
+  .ti.root .title { color:var(--dim); }
+  .ti input.rename { width:100%; padding:1px 4px; font-size:13px; }
+  .cnt { font-size:12px; color:#a3a9b3; flex:none; }
+  mark { background:#5a4a1a; color:inherit; border-radius:2px; }
+  .dot { width:8px; height:8px; border-radius:50%; background:var(--dim); flex:none; display:inline-block; }
+  .dot.running { background:var(--accent); } .dot.reported_done, .dot.done, .dot.accepted, .dot.verified { background:var(--ok); }
+  .dot.blocked { background:var(--warn); } .dot.abandoned, .dot.paused, .dot.replaced { background:#555; }
+  .dot.proposed { background:transparent; border:1px dashed var(--warn); } .dot.ready, .dot.pending { background:#7a8aa0; }
+  #pend { max-height:25%; overflow-y:auto; border-top:1px solid var(--line); padding:6px 8px; font-size:12px; }
+  #pend .pi { padding:2px 4px; border-radius:3px; cursor:pointer; } #pend .pi:hover { background:var(--hover); }
+
+  /* ---- center: the conversation ---- */
+  #center { flex:1; display:flex; flex-direction:column; min-width:360px; }
+  #conv { flex:1; overflow-y:auto; padding:12px 18px; }
+  footer { border-top:1px solid var(--line); padding:8px 12px; background:var(--panel); }
+  #target { display:flex; gap:8px; align-items:center; font-size:12px; color:var(--dim); margin-bottom:5px; flex-wrap:wrap; }
+  .chip { display:inline-flex; align-items:center; gap:4px; border:1px solid var(--line); border-radius:12px; padding:0 9px; background:var(--raise); color:var(--fg); font-size:12px; }
+  .chip.pinned { border-color:var(--ok); color:var(--ok); }
+  .chip .x { background:none; border:none; color:inherit; padding:2px 4px; margin-right:-6px; min-width:22px; min-height:22px; font-size:15px; line-height:1; }
+  #box { display:flex; gap:8px; }
+  #input { flex:1; height:70px; resize:vertical; border-radius:6px; padding:6px 8px; font-size:14px; }
+  .it { margin:8px 0; }
+  .user { margin-left:20%; background:var(--user); border-radius:8px; padding:6px 10px; }
+  .user .meta { display:flex; gap:8px; align-items:baseline; color:#a9b8cc; }
+  .user .text { white-space:pre-wrap; }
+  .user button.link { color:#d6e6ff; opacity:.85; }
+  .ctm { margin-right:12%; background:var(--ctm); border-radius:8px; padding:6px 10px; }
+  .ctm .body { white-space:pre-wrap; }
+  .ctm.done { border-left:3px solid var(--ok); }
+  .ctm.proxy { border-left:3px solid var(--accent); }
+  .asks { margin-top:6px; border-left:3px solid var(--warn); background:#2e2a22; border-radius:4px; padding:4px 10px 5px; }
+  .asks ol { margin:2px 0 0; padding-left:22px; } .asks li { margin:1px 0; } .asks .meta { margin-top:2px; }
+  .hint { color:var(--dim); max-width:560px; margin:12% auto 0; line-height:1.8; font-size:13px; } .hint b { color:var(--fg); font-weight:600; }
+  .ctm pre, .pg pre { white-space:pre-wrap; margin:4px 0; max-height:420px; overflow-y:auto; font: inherit; }
+  .route { margin-right:12%; color:var(--dim); font-size:12px; padding-left:10px; } .route .secs { opacity:.7; }
+  .route .to { color:var(--fg); }
+  .pending { margin-right:12%; border-left:3px solid var(--warn); padding:4px 10px; background:#2e2a22; border-radius:4px; }
+  .notice { color:var(--dim); font-size:12px; font-style:italic; }
+  .dialogitem { margin-right:12%; border:1px solid var(--warn); border-radius:6px; padding:6px 8px; }
+  .plan { margin-right:12%; border-left:3px solid var(--warn); padding:4px 10px; background:#2a2a2e; border-radius:4px; }
+
+  /* ---- right: page, queries, executions ---- */
+  #right { width:clamp(300px, 30vw, 520px); flex:none; border-left:1px solid var(--line); background:var(--panel); display:flex; flex-direction:column; min-height:0; }
+  #tabs { display:flex; gap:2px; padding:0 8px; border-bottom:1px solid var(--line); }
+  #tabs button { background:none; border:none; border-bottom:2px solid transparent; border-radius:0; padding:7px 10px 5px; color:var(--dim); font-size:13px; }
+  #tabs button[aria-selected="true"] { color:var(--fg); border-bottom-color:var(--accent); }
+  #panel { flex:1; overflow-y:auto; padding:10px 12px; font-size:13px; }
+  .pg .crumbs { font-size:12px; color:var(--dim); margin-bottom:2px; }
+  .pg .crumbs a, .pg a { color:var(--accent); cursor:pointer; }
+  .pg h3 { margin:2px 0 4px; font-size:15px; }
+  .pg .statusline { display:flex; gap:6px; align-items:center; flex-wrap:wrap; font-size:12px; color:var(--dim); }
+  .pg .pill { display:inline-flex; gap:5px; align-items:center; border-radius:10px; padding:0 8px; font-size:12px; }
+  .pg .purpose { margin:6px 0 2px; }
+  .actbar { display:flex; flex-wrap:wrap; gap:6px; margin:10px 0 8px; padding-bottom:10px; border-bottom:1px solid var(--line); }
+  .pg details.sec { margin:8px 0; }
+  .pg details.sec > summary { cursor:pointer; color:var(--dim); font-size:12px; padding:2px 0; }
+  .pg .li { padding:4px 0; border-bottom:1px dashed #33363b; } .pg .li a { display:inline-block; padding:2px 0; }
+  .pg .li .acts { margin-left:4px; }
+  .pg .old { color:var(--dim); text-decoration:line-through; }
+  .pg .q { margin:6px 0; padding:5px 7px; background:var(--ctm); border-radius:4px; }
+  .empty { color:var(--dim); padding:20px 6px; text-align:center; font-size:12px; }
+
+  /* ---- menus, dialogs, toasts ---- */
+  .menu { position:fixed; z-index:50; min-width:190px; background:#2b2e33; border:1px solid var(--line); border-radius:6px; padding:4px;
+          box-shadow:0 8px 28px rgba(0,0,0,.5); }
+  .menu button { display:flex; width:100%; justify-content:space-between; gap:18px; background:none; border:none; padding:5px 10px; font-size:13px; text-align:left; border-radius:4px; }
+  .menu button:hover:not(:disabled), .menu button:focus { background:var(--sel); outline:none; }
+  .menu .kbd { color:var(--dim); font-size:12px; }
+  .menu .sep { height:1px; background:var(--line); margin:4px 2px; }
+  dialog { background:var(--panel); color:var(--fg); border:1px solid var(--line); border-radius:8px; padding:14px 16px; width:min(540px, 92vw); }
+  dialog::backdrop { background:rgba(0,0,0,.45); }
+  dialog h3 { margin:0 0 6px; font-size:15px; }
+  dialog label { display:block; font-size:12px; color:var(--dim); margin:10px 0 3px; }
+  dialog input, dialog textarea, dialog select { width:100%; }
+  dialog .where { display:flex; gap:8px; align-items:center; font-size:13px; }
+  .dlg-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:14px; }
+  .picklist { max-height:52vh; overflow-y:auto; margin-top:8px; border:1px solid var(--line); border-radius:4px; }
+  .pick { padding:4px 8px; cursor:pointer; } .pick:hover { background:var(--hover); } .pick[aria-selected="true"] { background:var(--sel); }
+  .pick.goal > div:first-child { font-weight:600; }
+  .pick .path { font-size:12px; color:var(--dim); }
+  #toasts { position:fixed; left:16px; bottom:16px; display:flex; flex-direction:column; gap:6px; z-index:60; }
+  .toast { background:#30343a; border:1px solid var(--line); border-radius:6px; padding:6px 12px; font-size:13px; box-shadow:0 6px 20px rgba(0,0,0,.4);
+           display:flex; gap:12px; align-items:center; max-width:520px; }
+  .keys td { padding:2px 10px 2px 0; font-size:13px; } .keys td:first-child { color:var(--accent); white-space:nowrap; }
+</style>
+</head>
+<body>
+<header>
+  <b>CTM</b>
+  <span id="ctm-busy" class="badge run" hidden title="CTM is handling a message or an executor's reply; the running states in the tree are still live">CTM is working…</span>
+  <span style="flex:1"></span>
+  <button id="btn-maintain" title="Have CTM look back over the tree and tidy it (normally automatic)">Tidy tree</button>
+  <button id="btn-keys" title="Keyboard shortcuts">Shortcuts</button>
+</header>
+<main>
+  <div id="left">
+    <div id="treehead">
+      <input id="filter" type="search" placeholder="Filter works (/)" aria-label="Filter works">
+      <button id="btn-new" title="Create a work">New</button>
+      <button id="btn-collapse" title="Collapse: expand only the running works and the current work">Collapse</button>
+    </div>
+    <div id="tree" role="tree" aria-label="Task tree"></div>
+    <div id="pend"></div>
+  </div>
+  <div id="split" title="Drag to resize; double-click to reset"></div>
+  <div id="center">
+    <div id="conv" aria-live="polite"></div>
+    <footer>
+      <div id="target"></div>
+      <div id="box"><textarea id="input" placeholder="Talk to CTM (Enter to send, Shift+Enter for a new line)"></textarea><button id="send" class="primary">Send</button></div>
+    </footer>
+  </div>
+  <div id="split2" title="Drag to resize the right pane; double-click to reset"></div>
+  <div id="right">
+    <div id="tabs" role="tablist">
+      <button role="tab" id="tab-page" data-tab="page">Page</button>
+      <button role="tab" id="tab-queries" data-tab="queries">Queries</button>
+      <button role="tab" id="tab-executions" data-tab="executions">Executions</button>
+    </div>
+    <div id="panel" class="pg" role="tabpanel"></div>
+  </div>
+</main>
+<div id="toasts" aria-live="polite"></div>
+<script>
+// ======================================================================================================================
+// State and helpers
+// ======================================================================================================================
+const $ = (s, r = document) => r.querySelector(s);
+const esc = (s) => (s ?? '').toString().replace(/[&<>"']/g, (c) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+const ST = {running: 'in progress', paused: 'paused', reported_done: 'done (self-reported)', accepted: 'accepted', verified: 'verified', abandoned: 'abandoned', blocked: 'blocked',
+            pending: 'pending', ready: 'ready', proposed: 'proposed', reopened: 'reopened', replaced: 'replaced', done: 'done'};
+const SETTABLE = ['running', 'paused', 'reported_done', 'accepted', 'abandoned', 'reopened'];
+const TO = {existing: 'continue', side: 'question', new: 'new work', research: 'research', control: 'control', ask: 'asks you first', memory: 'remember'};
+const fmt = (t) => t ? new Date(t * 1000).toLocaleString('zh-CN', {hour12: false}) : '';
+
+let tree = {nodes: [], current: null, selection: null, pending: []};   // selection: the work the next message is pinned to
+let byId = new Map(), kids = new Map();
+let viewId = null, focusId = null, filter = '', renaming = null, rows = [];
+let tab = 'page', docId = null;
+const titles = {};
+
+function index() {
+  byId = new Map(tree.nodes.map((n) => [n.id, n]));
+  kids = new Map();
+  for (const n of tree.nodes) { const p = byId.has(n.parent) ? n.parent : ''; if (!kids.has(p)) kids.set(p, []); kids.get(p).push(n); }
+  for (const a of kids.values()) a.sort((x, y) => (y.last || 0) - (x.last || 0));
+}
+const titleOf = (id) => id === 'ROOT' ? 'Global' : (byId.get(id) || {}).title || titles[id] || id || '';
+const parentOf = (id) => { const p = (byId.get(id) || {}).parent; return byId.has(p) ? p : null; };
+const pathOf = (id) => { const out = []; let x = parentOf(id); while (x) { out.unshift(x); x = parentOf(x); } return out; };
+const isAncestor = (a, b) => { let x = parentOf(b); while (x) { if (x === a) return true; x = parentOf(x); } return false; };
+const hl = (text, q) => {
+  text = text || ''; if (!q) return esc(text);
+  const i = text.toLowerCase().indexOf(q.toLowerCase());
+  return i < 0 ? esc(text) : esc(text.slice(0, i)) + '<mark>' + esc(text.slice(i, i + q.length)) + '</mark>' + esc(text.slice(i + q.length));
+};
+
+async function api(path, body) {
+  const r = await fetch(path, body ? {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)} : {});
+  return r.json();
+}
+async function ui(op, args) {
+  const r = await api('/api/ui', Object.assign({op}, args || {}));
+  if (r && r.error) toast('Not done: ' + r.error);
+  return r || {};
+}
+
+// ======================================================================================================================
+// Toasts (results, with undo where the change can be reversed)
+// ======================================================================================================================
+function toast(text, action) {
+  const t = document.createElement('div');
+  t.className = 'toast'; t.innerHTML = `<span>${esc(text)}</span>`;
+  if (action) {
+    const b = document.createElement('button'); b.className = 'link'; b.textContent = action.label;
+    b.onclick = async () => { t.remove(); await action.fn(); };
+    t.appendChild(b);
+  }
+  $('#toasts').appendChild(t);
+  setTimeout(() => t.remove(), action ? 8000 : 4000);
+}
+
+// ======================================================================================================================
+// Menus (context menu and "more" menus): keyboard navigable, closed by Esc, a click outside, scroll or resize
+// ======================================================================================================================
+let menuEl = null, menuReturn = null;
+function closeMenu(restore = true) {
+  if (!menuEl) return;
+  menuEl.remove(); menuEl = null;
+  if (restore && menuReturn && document.contains(menuReturn)) menuReturn.focus({preventScroll: true});
+}
+function showMenu(items, x, y) {
+  closeMenu(false);
+  menuReturn = document.activeElement;
+  const m = document.createElement('div');
+  m.className = 'menu'; m.setAttribute('role', 'menu');
+  for (const it of items) {
+    if (it.sep) { const s = document.createElement('div'); s.className = 'sep'; m.appendChild(s); continue; }
+    const b = document.createElement('button');
+    b.setAttribute('role', 'menuitem'); b.disabled = !!it.disabled;
+    if (it.danger) b.classList.add('danger');
+    b.innerHTML = `<span>${it.checked ? '✓ ' : ''}${esc(it.label)}</span>${it.kbd ? `<span class="kbd">${esc(it.kbd)}</span>` : ''}`;
+    b.onclick = () => { closeMenu(!it.keepFocus); it.fn(); };
+    m.appendChild(b);
+  }
+  document.body.appendChild(m);
+  const r = m.getBoundingClientRect();
+  m.style.left = Math.max(4, Math.min(x, innerWidth - r.width - 4)) + 'px';
+  m.style.top = Math.max(4, Math.min(y, innerHeight - r.height - 4)) + 'px';
+  menuEl = m;
+  const btns = () => [...m.querySelectorAll('button:not(:disabled)')];
+  (btns()[0] || m).focus();
+  m.addEventListener('keydown', (e) => {
+    const bs = btns(), i = bs.indexOf(document.activeElement);
+    if (e.key === 'ArrowDown') bs[(i + 1) % bs.length].focus();
+    else if (e.key === 'ArrowUp') bs[(i - 1 + bs.length) % bs.length].focus();
+    else if (e.key === 'Home') bs[0].focus();
+    else if (e.key === 'End') bs[bs.length - 1].focus();
+    else if (e.key === 'Escape') closeMenu();
+    else if (e.key === 'Tab') { closeMenu(); return; }
+    else return;
+    e.preventDefault();
+  });
+}
+function menuAt(el, items) { const r = el.getBoundingClientRect(); showMenu(items, r.left, r.bottom + 2); }
+document.addEventListener('mousedown', (e) => { if (menuEl && !menuEl.contains(e.target)) closeMenu(false); });
+addEventListener('resize', () => closeMenu(false));
+document.addEventListener('scroll', () => closeMenu(false), true);
+
+// ======================================================================================================================
+// Dialogs: forms, confirmation, and a searchable picker of works
+// ======================================================================================================================
+function form({title, note = '', fields = [], submit = 'OK', danger = false, extra = null, onChange = null}) {
+  return new Promise((resolve) => {
+    const d = document.createElement('dialog');
+    const field = (f, i) => {
+      const id = 'f' + i, lab = `<label for="${id}">${esc(f.label)}</label>`;
+      if (f.type === 'textarea') return lab + `<textarea id="${id}" name="${f.name}" rows="${f.rows || 4}" ${f.required ? 'required' : ''}>${esc(f.value || '')}</textarea>`;
+      if (f.type === 'select') return lab + `<select id="${id}" name="${f.name}">${f.options.map((o) =>
+        `<option value="${esc(o.value)}"${o.value === f.value ? ' selected' : ''}>${esc(o.label)}</option>`).join('')}</select>`;
+      return lab + `<input id="${id}" name="${f.name}" value="${esc(f.value || '')}" placeholder="${esc(f.placeholder || '')}" ${f.required ? 'required' : ''} autocomplete="off">`;
+    };
+    d.innerHTML = `<form><h3>${esc(title)}</h3>${note ? `<div class="meta">${esc(note)}</div>` : ''}<div class="extra"></div>${fields.map(field).join('')}
+      <div class="dlg-actions"><button type="button" data-cancel>Cancel</button><button type="submit" class="${danger ? 'danger' : 'primary'}">${esc(submit)}</button></div></form>`;
+    document.body.appendChild(d);
+    const frm = $('form', d);
+    if (extra) extra($('.extra', d));
+    const close = (v) => { d.close(); d.remove(); resolve(v); };
+    $('[data-cancel]', d).onclick = () => close(null);
+    d.addEventListener('cancel', (e) => { e.preventDefault(); close(null); });
+    frm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (!frm.reportValidity()) return;
+      const v = {}; for (const f of fields) v[f.name] = frm.elements[f.name].value.trim();
+      close(v);
+    });
+    if (onChange) frm.addEventListener('change', () => onChange(frm));
+    d.showModal();
+    const first = frm.querySelector('input, textarea, select');
+    if (first) { first.focus(); if (first.select) first.select(); } else $('button[type=submit]', d).focus();
+  });
+}
+const confirmDialog = (title, note, submit, danger = true) => form({title, note, submit, danger}).then((v) => v !== null);
+
+function orderedNodes() {
+  const out = [];
+  const walk = (p) => (kids.get(p) || []).forEach((n) => { out.push(n); walk(n.id); });
+  walk('');
+  return out;
+}
+// Resolves with a node id, 'ROOT' (when allowed), or undefined when cancelled.
+function pick({title, note = '', allowRoot = false, rootLabel = 'Root (under no work)', exclude = () => false}) {
+  return new Promise((resolve) => {
+    const d = document.createElement('dialog');
+    d.innerHTML = `<h3>${esc(title)}</h3>${note ? `<div class="meta">${esc(note)}</div>` : ''}
+      <input class="pq" type="search" placeholder="Type to filter; ↑↓ to choose, Enter to confirm" aria-label="Filter" style="margin-top:8px">
+      <div class="picklist" role="listbox" aria-label="Works"></div><div class="dlg-actions"><button type="button" data-cancel>Cancel</button></div>`;
+    document.body.appendChild(d);
+    const inp = $('.pq', d), list = $('.picklist', d);
+    const all = [...(allowRoot ? [{id: 'ROOT', title: rootLabel, path: ''}] : []),
+                 ...orderedNodes().filter((n) => !exclude(n.id)).map((n) => ({id: n.id, title: n.title || n.id, status: n.status, goal: n.kind === 'goal',
+                                                                              path: pathOf(n.id).map(titleOf).join(' › ')}))];
+    let items = all, k = 0;
+    const draw = () => {
+      const q = inp.value.trim().toLowerCase();
+      items = q ? all.filter((x) => x.title.toLowerCase().includes(q) || x.path.toLowerCase().includes(q) || x.id.toLowerCase() === q) : all;
+      k = Math.max(0, Math.min(k, items.length - 1));
+      list.innerHTML = items.slice(0, 400).map((x, i) => `<div class="pick${x.goal ? ' goal' : ''}" role="option" data-i="${i}" aria-selected="${i === k}">
+          <div>${x.status ? `<span class="dot ${esc(x.status)}"></span> ` : ''}${hl(x.title, inp.value.trim())}</div>${x.path ? `<div class="path">${esc(x.path)}</div>` : ''}</div>`).join('')
+        || '<div class="empty">No matching work</div>';
+      const s = $('[aria-selected="true"]', list); if (s) s.scrollIntoView({block: 'nearest'});
+    };
+    const close = (v) => { d.close(); d.remove(); resolve(v); };
+    inp.addEventListener('input', () => { k = 0; draw(); });
+    inp.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowDown') k = Math.min(items.length - 1, k + 1);
+      else if (e.key === 'ArrowUp') k = Math.max(0, k - 1);
+      else if (e.key === 'Enter') { e.preventDefault(); if (items[k]) close(items[k].id); return; }
+      else if (e.key === 'Escape') { e.preventDefault(); close(undefined); return; }   // a search box would only clear itself
+      else return;
+      e.preventDefault(); draw();
+    });
+    list.addEventListener('click', (e) => { const el = e.target.closest('.pick'); if (el) close(items[+el.dataset.i].id); });
+    $('[data-cancel]', d).onclick = () => close(undefined);
+    d.addEventListener('cancel', (e) => { e.preventDefault(); close(undefined); });
+    d.showModal(); draw(); inp.focus();
+  });
+}
+
+// ======================================================================================================================
+// The tree (WAI-ARIA tree view: roving focus, arrows, Home/End, Enter, F2, type-ahead, context menu; no hover toolbars)
+// ======================================================================================================================
+const lsSet = (k, v) => v === undefined ? new Set(JSON.parse(localStorage.getItem(k) || '[]')) : localStorage.setItem(k, JSON.stringify([...v]));
+let userOpen = lsSet('ctm-open'), userClosed = lsSet('ctm-closed');
+function autoOpen() {                                // running work, the current work, the pinned and the viewed one stay visible
+  const open = new Set();
+  const up = (x) => { x = parentOf(x); while (x && !open.has(x)) { open.add(x); x = parentOf(x); } };
+  for (const n of tree.nodes) if (n.busy || n.tidying) { open.add(n.id); up(n.id); }
+  for (const x of [tree.current, tree.selection, viewId]) if (x && byId.has(x)) up(x);
+  if (tree.current && byId.has(tree.current)) open.add(tree.current);
+  return open;
+}
+const isOpen = (id, auto) => !userClosed.has(id) && (userOpen.has(id) || auto.has(id));
+function setOpen(id, open) {
+  if (open) { userClosed.delete(id); userOpen.add(id); } else { userOpen.delete(id); userClosed.add(id); }
+  lsSet('ctm-open', userOpen); lsSet('ctm-closed', userClosed);
+  renderTree();
+}
+function toggle(id) { const r = rows.find((x) => x.id === id); if (r && r.has) setOpen(id, !r.open); }
+
+function visibleRows() {
+  const q = filter.trim().toLowerCase();
+  let show = null;
+  if (q) {
+    show = new Set();
+    for (const n of tree.nodes) {
+      if ((n.title || '').toLowerCase().includes(q) || (n.purpose || '').toLowerCase().includes(q) || n.id.toLowerCase() === q) {
+        show.add(n.id); let x = parentOf(n.id); while (x) { show.add(x); x = parentOf(x); }
+      }
+    }
+  }
+  const auto = autoOpen();
+  const top = (kids.get('') || []).filter((n) => !show || show.has(n.id));
+  const out = [{id: 'ROOT', depth: 0, has: false, open: false, pos: 1, size: top.length + 1}];
+  const walk = (list, depth, offset) => list.forEach((n, i) => {
+    const ch = (kids.get(n.id) || []).filter((c) => !show || show.has(c.id));
+    const open = ch.length > 0 && (show ? true : isOpen(n.id, auto));
+    out.push({id: n.id, depth, has: ch.length > 0, open, pos: i + 1 + offset, size: list.length + offset});
+    if (open) walk(ch, depth + 1, 0);
+  });
+  walk(top, 0, 1);
+  return out;
+}
+function tipOf(n) {
+  return [n.title + (n.kind === 'goal' ? (n.summarized ? ' (goal: summarized by CTM from your requests; rename, merge or move it as you like)' : ' (goal: as you stated it)') : ''),
+          'Status: ' + (ST[n.status] || n.status || ''), n.purpose || '', n.working_dir ? 'Directory: ' + n.working_dir : ''].filter(Boolean).join('\n');
+}
+function rowHtml(r, q) {
+  const common = `role="treeitem" id="ti-${r.id}" data-id="${r.id}" aria-level="${r.depth + 1}" aria-posinset="${r.pos}" aria-setsize="${r.size}"
+    aria-selected="${viewId === r.id}" tabindex="${focusId === r.id ? 0 : -1}"`;
+  if (r.id === 'ROOT') {
+    return `<div class="ti root" ${common} title="Preferences, global constraints, the understanding of you, overall goals"><span class="tw"></span><span class="title">◎ Global</span></div>`;
+  }
+  const n = byId.get(r.id);
+  const cls = ['ti', n.kind === 'goal' ? 'goal' : '', n.id === tree.current ? 'cur' : ''].join(' ');
+  const b = [];
+  if (r.has && !r.open) b.push(`<span class="cnt" title="${(kids.get(n.id) || []).length} child works">${(kids.get(n.id) || []).length}</span>`);
+  if (n.busy) b.push(`<span class="badge run" title="${esc(n.tool ? 'The executor is using: ' + n.tool : 'The executor is working')}">running</span>`);
+  else if (n.tidying) b.push('<span class="badge run" title="The executor replied; CTM is preparing the relay">relaying</span>');
+  if (n.id === tree.selection) b.push('<span class="badge pin" title="The next message goes here">send here</span>');
+  if (n.id === tree.current) b.push('<span class="badge" title="The work you last talked about: messages that name no object go here">current</span>');
+  if (n.status === 'proposed') b.push('<span class="badge warn" title="A subtask proposed by the planner, waiting for your approval">proposed</span>');
+  return `<div class="${cls}" ${common} ${r.has ? `aria-expanded="${r.open}"` : ''} draggable="true" style="padding-left:${4 + r.depth * 16}px" title="${esc(tipOf(n))}">
+    <span class="tw" data-toggle aria-hidden="true">${r.has ? (r.open ? '▾' : '▸') : ''}</span><span class="dot ${esc(n.status)}" aria-hidden="true"></span>
+    <span class="title">${hl(n.title, q)}</span><span class="sr">${esc(ST[n.status] || '')}</span>${b.join('')}</div>`;
+}
+function renderTree() {
+  if (renaming) return;                            // never disturb an inline rename
+  index();
+  rows = visibleRows();
+  if (!rows.some((r) => r.id === focusId)) focusId = rows.some((r) => r.id === viewId) ? viewId : (rows[0] || {}).id;
+  const T = $('#tree'), hadFocus = T.contains(document.activeElement), top = T.scrollTop;
+  T.innerHTML = rows.map((r) => rowHtml(r, filter.trim())).join('') + (tree.nodes.length ? '' : '<div class="empty">No works yet. Just talk to CTM in the conversation.</div>')
+    + (filter && rows.length === 1 ? '<div class="empty">No matching work</div>' : '');
+  T.scrollTop = top;
+  if (hadFocus) focusRow(focusId, false);
+  renderPending(); renderTarget();
+}
+function markViewed() { for (const el of $('#tree').querySelectorAll('.ti')) el.setAttribute('aria-selected', String(el.dataset.id === viewId)); }
+function focusRow(id, scroll = true) {
+  const el = document.getElementById('ti-' + id); if (!el) return;
+  for (const x of $('#tree').querySelectorAll('.ti[tabindex="0"]')) x.tabIndex = -1;
+  el.tabIndex = 0; focusId = id; el.focus({preventScroll: true});
+  if (scroll) el.scrollIntoView({block: 'nearest'});
+}
+function renderPending() {
+  const ps = tree.pending || [];
+  $('#pend').innerHTML = ps.length ? '<div class="meta">Waiting for your decision</div>' + ps.map((p) =>
+    `<div class="pi" data-open="${esc(p.about || '')}" title="Open this work">"${esc(titleOf(p.about))}" ${esc(p.what)}</div>`).join('') : '';
+  $('#pend').style.display = ps.length ? '' : 'none';
+}
+
+let typed = '', typedAt = 0;
+function typeahead(ch) {
+  const now = Date.now(); typed = (now - typedAt < 700 ? typed : '') + ch.toLowerCase(); typedAt = now;
+  const i = Math.max(0, rows.findIndex((r) => r.id === focusId));
+  const start = typed.length > 1 ? i : i + 1;          // a new letter looks further; more letters refine the current match
+  for (let k = 0; k < rows.length; k++) {
+    const r = rows[(start + k) % rows.length];
+    if (titleOf(r.id).toLowerCase().startsWith(typed)) { focusRow(r.id); return; }
+  }
+}
+function treeKey(e) {
+  if (e.target.tagName === 'INPUT' || renaming) return;
+  const i = rows.findIndex((r) => r.id === focusId), r = rows[i];
+  if (!r) return;
+  const go = (j) => { if (rows[j]) focusRow(rows[j].id); };
+  switch (e.key) {
+    case 'ArrowDown': go(i + 1); break;
+    case 'ArrowUp': go(i - 1); break;
+    case 'Home': go(0); break;
+    case 'End': go(rows.length - 1); break;
+    case 'ArrowRight': if (r.has && !r.open) setOpen(r.id, true); else if (r.has) go(i + 1); break;
+    case 'ArrowLeft': if (r.has && r.open) setOpen(r.id, false); else { const p = parentOf(r.id); if (p) focusRow(p); } break;
+    case 'Enter': openPage(r.id); break;
+    case 'F2': if (r.id !== 'ROOT') startRename(r.id); break;
+    case 'ContextMenu': rowMenu(r.id); break;
+    case 'F10': if (!e.shiftKey) return; rowMenu(r.id); break;
+    case '*': { const p = parentOf(r.id) || ''; for (const n of kids.get(p) || []) if ((kids.get(n.id) || []).length) { userClosed.delete(n.id); userOpen.add(n.id); }
+                lsSet('ctm-open', userOpen); lsSet('ctm-closed', userClosed); renderTree(); break; }
+    default:
+      if (e.key.length === 1 && e.key !== ' ' && !e.ctrlKey && !e.metaKey && !e.altKey) { typeahead(e.key); break; }
+      return;
+  }
+  e.preventDefault();
+}
+function rowMenu(id) { const el = document.getElementById('ti-' + id); if (el) { const r = el.getBoundingClientRect(); showMenu(nodeMenu(id), r.left + 24, r.bottom); } }
+
+function startRename(id) {
+  const el = document.getElementById('ti-' + id); if (!el) return;
+  const span = $('.title', el), old = titleOf(id);
+  renaming = id; el.draggable = false;
+  span.innerHTML = `<input class="rename" aria-label="New name" value="${esc(old)}">`;
+  const inp = $('input', span); inp.focus(); inp.select();
+  let done = false;
+  const finish = async (save) => {
+    if (done) return; done = true; renaming = null;
+    const t = inp.value.trim();
+    if (save && t && t !== old) await renameNode(id, t, old); else renderTree();
+    focusRow(id);
+  };
+  inp.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') { e.preventDefault(); finish(true); } else if (e.key === 'Escape') { e.preventDefault(); finish(false); } });
+  inp.addEventListener('blur', () => finish(true));
+  for (const ev of ['click', 'dblclick', 'mousedown']) inp.addEventListener(ev, (e) => e.stopPropagation());
+}
+
+(() => {                                             // tree events (delegated)
+  const T = $('#tree');
+  T.addEventListener('click', (e) => {
+    const row = e.target.closest('.ti'); if (!row || renaming) return;
+    const id = row.dataset.id;
+    if (e.target.closest('[data-toggle]')) { toggle(id); focusRow(id, false); return; }
+    focusRow(id, false); openPage(id);
+  });
+  T.addEventListener('dblclick', (e) => { const row = e.target.closest('.ti'); if (row && !renaming && !e.target.closest('[data-toggle]')) toggle(row.dataset.id); });
+  T.addEventListener('contextmenu', (e) => {
+    const row = e.target.closest('.ti'); if (!row || renaming) return;
+    e.preventDefault(); focusRow(row.dataset.id, false); showMenu(nodeMenu(row.dataset.id), e.clientX, e.clientY);
+  });
+  T.addEventListener('keydown', treeKey);
+  T.addEventListener('focusin', (e) => { const row = e.target.closest('.ti'); if (row) focusId = row.dataset.id; });
+  // drag a work onto another one to make it a part of that work; onto Global to put it at the root
+  let dragId = null;
+  const canDrop = (id, t) => id && id !== t && !(t !== 'ROOT' && isAncestor(id, t)) && (t === 'ROOT' ? parentOf(id) !== null : parentOf(id) !== t);
+  const clear = () => T.querySelectorAll('.drop, .dragging').forEach((x) => x.classList.remove('drop', 'dragging'));
+  T.addEventListener('dragstart', (e) => {
+    const row = e.target.closest('.ti');
+    if (!row || row.dataset.id === 'ROOT' || renaming) { e.preventDefault(); return; }
+    dragId = row.dataset.id; row.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', dragId);
+  });
+  T.addEventListener('dragend', () => { dragId = null; clear(); });
+  T.addEventListener('dragover', (e) => {
+    const row = e.target.closest('.ti'); if (!row || !canDrop(dragId, row.dataset.id)) return;
+    e.preventDefault(); e.dataTransfer.dropEffect = 'move';
+    T.querySelectorAll('.drop').forEach((x) => { if (x !== row) x.classList.remove('drop'); });
+    row.classList.add('drop');
+  });
+  T.addEventListener('dragleave', (e) => { const row = e.target.closest('.ti'); if (row && !row.contains(e.relatedTarget)) row.classList.remove('drop'); });
+  T.addEventListener('drop', (e) => {
+    const row = e.target.closest('.ti'); const id = dragId; dragId = null; clear();
+    if (!row || !canDrop(id, row.dataset.id)) return;
+    e.preventDefault(); moveNode(id, row.dataset.id === 'ROOT' ? null : row.dataset.id);
+  });
+})();
+
+// ======================================================================================================================
+// Node actions: the same set from the page's action bar, the context menu and the keyboard
+// ======================================================================================================================
+function nodeMenu(id) {
+  if (id === 'ROOT') return [{label: 'Open the global page', kbd: 'Enter', fn: () => openPage('ROOT')}, {label: 'Add a preference or global constraint…', fn: addPreference}];
+  const n = byId.get(id) || {}, pinned = tree.selection === id;
+  const proposals = n.status === 'proposed' || (kids.get(id) || []).some((c) => c.status === 'proposed');
+  return [
+    {label: 'Open page', kbd: 'Enter', fn: () => openPage(id)},
+    {label: pinned ? 'Stop sending the next messages here' : 'Send the next message here', fn: () => pin(pinned ? null : id)},
+    {sep: true},
+    {label: 'New child work…', fn: () => createTask(id)},
+    {label: 'Rename', kbd: 'F2', fn: () => { focusRow(id); startRename(id); }, keepFocus: true},
+    {label: 'Move to…', fn: () => pickMove(id)},
+    {label: 'Merge into…', fn: () => pickMerge(id)},
+    {label: 'Change status…', fn: () => statusMenu(id)},
+    ...(proposals ? [{sep: true}, {label: 'Approve the proposed subtasks', fn: () => approvePlan(id)}] : []),
+    ...(n.busy || n.run ? [{sep: true}] : []),
+    ...(n.run ? [{label: 'View the execution record', fn: () => openRecord(n.run)}] : []),
+    ...(n.busy ? [{label: 'Stop the execution…', danger: true, fn: () => stopRun(id)}] : []),
+  ];
+}
+function statusMenu(id, anchor) {
+  const cur = (byId.get(id) || {}).status;
+  const items = SETTABLE.map((s) => ({label: ST[s], checked: s === cur, fn: () => setStatus(id, s)}));
+  const el = anchor || document.getElementById('ti-' + id);
+  if (el) menuAt(el, items); else showMenu(items, innerWidth / 2, innerHeight / 3);
+}
+async function pin(id) {
+  await ui('select', {node: id});
+  await refreshTree();
+  if (viewId && viewId !== 'ROOT' && tab === 'page' && !docId) openPage(viewId, true);
+}
+async function moveNode(id, parent) {
+  const old = parentOf(id);
+  const r = await ui('move', {node: id, parent}); if (r.error) return;
+  await refreshTree();
+  toast(`Moved "${titleOf(id)}" ${parent ? 'under "' + titleOf(parent) + '"' : 'to the root'}`,
+        {label: 'Undo', fn: async () => { await ui('move', {node: id, parent: old}); await refreshTree(); }});
+  if (viewId === id) openPage(id, true);
+}
+async function pickMove(id) {
+  const t = await pick({title: `Move "${titleOf(id)}" where`, note: 'Choose the work or Goal it belongs to (it is a part of that work)', allowRoot: true,
+                        exclude: (x) => x === id || isAncestor(id, x) || x === parentOf(id)});
+  if (t !== undefined) moveNode(id, t === 'ROOT' ? null : t);
+}
+async function pickMerge(id) {
+  const t = await pick({title: `Which work is the same work as "${titleOf(id)}"`, note: 'After merging, its messages, constraints, decisions and execution records go into that one',
+                        exclude: (x) => x === id || isAncestor(id, x)});
+  if (t === undefined) return;
+  if (!await confirmDialog('Merge two works', `Merge "${titleOf(id)}" into "${titleOf(t)}"? A merge cannot be undone.`, 'Merge')) return;
+  const r = await ui('merge', {node: id, into: t}); if (r.error) return;
+  await refreshTree(); toast(`Merged into "${titleOf(t)}"`); openPage(t);
+}
+async function renameNode(id, title, old) {
+  const r = await ui('rename', {node: id, title}); if (r.error) return;
+  await refreshTree(); if (viewId === id) openPage(id, true);
+  toast(`Renamed to "${title}"`, {label: 'Undo', fn: async () => { await ui('rename', {node: id, title: old}); await refreshTree(); if (viewId === id) openPage(id, true); }});
+}
+async function purposeDialog(id) {
+  const old = (byId.get(id) || {}).purpose || '';
+  const v = await form({title: 'Edit purpose', note: `What "${titleOf(id)}" is for and what it produces`, fields: [{name: 'purpose', label: 'Purpose', type: 'textarea', rows: 3, value: old, required: true}], submit: 'Save'});
+  if (!v || v.purpose === old) return;
+  const r = await ui('purpose', {node: id, purpose: v.purpose}); if (r.error) return;
+  await refreshTree(); if (viewId === id) openPage(id, true);
+  toast('Purpose changed', {label: 'Undo', fn: async () => { await ui('purpose', {node: id, purpose: old}); await refreshTree(); if (viewId === id) openPage(id, true); }});
+}
+async function renameDialog(id) {
+  const v = await form({title: 'Rename', fields: [{name: 'title', label: 'Name', value: titleOf(id), required: true}], submit: 'Rename'});
+  if (v && v.title !== titleOf(id)) renameNode(id, v.title, titleOf(id));
+}
+async function setStatus(id, s) {
+  const old = (byId.get(id) || {}).status;
+  if (s === old) return;
+  if (['abandoned', 'paused'].includes(s) && (byId.get(id) || {}).busy &&
+      !await confirmDialog('Change status', `The executor of "${titleOf(id)}" is working; setting it to "${ST[s]}" stops it.`, 'Set to ' + ST[s])) return;
+  const r = await ui('status', {node: id, status: s}); if (r.error) return;
+  await refreshTree(); if (viewId === id) openPage(id, true);
+  toast(`"${titleOf(id)}" set to ${ST[s]}`, SETTABLE.includes(old) ? {label: 'Undo', fn: async () => { await ui('status', {node: id, status: old}); await refreshTree(); if (viewId === id) openPage(id, true); }} : null);
+}
+async function createTask(parent) {
+  let where = parent === undefined ? (viewId && viewId !== 'ROOT' ? viewId : null) : parent;
+  const v = await form({
+    title: 'New work', submit: 'Create',
+    fields: [{name: 'title', label: 'Title', required: true, placeholder: 'Its output, or what is to be done'},
+             {name: 'purpose', label: 'Purpose (its output or the state it changes; optional)', type: 'textarea', rows: 3}],
+    extra: (box) => {
+      const draw = () => { box.innerHTML = `<label>Place</label><div class="where"><span>${where ? 'under "' + esc(titleOf(where)) + '"' : 'at the root'}</span><button type="button" class="link">Change…</button></div>`;
+        $('button', box).onclick = async () => { const t = await pick({title: 'Where the new work goes', allowRoot: true}); if (t !== undefined) { where = t === 'ROOT' ? null : t; draw(); } }; };
+      draw();
+    }});
+  if (!v) return;
+  const r = await ui('create', {title: v.title, purpose: v.purpose, parent: where});
+  if (r.node) { await refreshTree(); openPage(r.node); focusRow(r.node); toast(`Created "${v.title}"`); }
+}
+async function stopRun(id) {
+  const n = byId.get(id) || {};
+  if (!n.run || !await confirmDialog('Stop the execution', `Stop the executor of "${titleOf(id)}"? What it is doing in this round is interrupted; you can let it continue later.`, 'Stop')) return;
+  await ui('stop', {run: n.run}); await refreshTree(); toast('Stopped');
+}
+async function approvePlan(id) { await ui('approve', {node: id}); await refreshTree(); toast(`Approved the subtasks of "${titleOf(id)}"; those that can run have started`); }
+function openRecord(run) { window.open('/record/' + run, '_blank', 'noopener'); }
+
+// ======================================================================================================================
+// Right panel: the node page (with a fixed action bar), root, documents, queries, executions
+// ======================================================================================================================
+function setTab(t) {
+  tab = t;
+  for (const b of $('#tabs').querySelectorAll('button')) b.setAttribute('aria-selected', String(b.dataset.tab === t));
+}
+function showTab(t) {
+  setTab(t);
+  if (t === 'page') return docId ? openDoc(docId) : viewId ? openPage(viewId, true) : ($('#panel').innerHTML = '<div class="empty">Click a work in the tree on the left to see its page and actions here.</div>');
+  if (t === 'queries') return renderQueries();
+  if (t === 'executions') return renderExecutions();
+}
+let emptySecs = [];                                 // sections with nothing in them are listed on one line instead
+const sec = (title, n, body, open) => n === 0 ? (emptySecs.push(title.replace(/\s*\(.*\)/, '')), '')
+  : `<details class="sec"${open ? ' open' : ''}><summary>${esc(title)}${n !== null ? ` (${n})` : ''}</summary>${body || '<div class="meta">none</div>'}</details>`;
+const emptyLine = () => { const t = emptySecs.length ? `<div class="meta" style="margin:8px 0">None yet: ${emptySecs.map(esc).join(', ')}</div>` : ''; emptySecs = []; return t; };
+async function openPage(id, keepScroll = false) {
+  viewId = id; docId = null; setTab('page'); markViewed();
+  const top = keepScroll ? $('#panel').scrollTop : 0;
+  const p = await api('/api/view/page/' + id);
+  if (viewId !== id || tab !== 'page') return;     // another click came first
+  if (p.error) { $('#panel').innerHTML = `<div class="empty">${esc(p.error)}</div>`; return; }
+  if (p.kind === 'root') return renderRoot(p);
+  const n = byId.get(id) || {}, pinned = tree.selection === id;
+  const proposals = n.status === 'proposed' || (kids.get(id) || []).some((c) => c.status === 'proposed');
+  const T = (x) => esc((p.titles || {})[x] || titleOf(x));
+  const crumbs = pathOf(id).map((x) => `<a data-open="${x}">${esc(titleOf(x))}</a>`).join(' › ');
+  const cons = (p.constraints || []).map((c) => `<div class="li ${c.current ? '' : 'old'}">${esc(c.statement)}<span class="meta"> turn ${c.turn ?? '?'}</span>
+      ${c.current ? `<span class="acts"><button class="link" data-cmove="${c.id}" title="This constraint really holds for another work (or globally)">Move…</button><button class="link" data-cobj="${c.id}" title="This is a rule of an object itself, which every work touching the object must follow">Make it an object constraint…</button></span>` : ''}</div>`).join('');
+  const inh = (p.inherited_constraints || []).map((c) => `<div class="li"><span class="tag" title="This constraint is recorded on a sibling work; CTM judged it applies here too and gave it to this work's executor">applies (CTM's judgment)</span> ${esc(c.statement)}<span class="meta"> originally a requirement of "${esc(c.from_title || '')}" · turn ${c.turn ?? '?'}</span>
+      <span class="acts"><button class="link" data-dropinh="${c.id}" title="This does not apply to this work: it will no longer be given to its executor">Does not apply</button></span></div>`).join('');
+  const decs = (p.decisions || []).map((d) => `<div class="li ${d.current ? '' : 'old'}">${{rejected: '(rejected) ', questioned: '(questioned) '}[d.type] || ''}${esc(d.statement)}<span class="meta"> turn ${d.turn ?? '?'}</span></div>`).join('');
+  const prog = (p.progress || []).slice(-12).reverse().map((g) => `<div class="li">${g.milestone ? '<span class="tag">midway</span> ' : ''}${esc(g.done || g.note || '')}
+      ${(g.failed || []).length ? `<div class="meta">Did not work: ${esc(g.failed.join('; '))}</div>` : ''}<div class="meta">${fmt(g.observed_at)}</div></div>`).join('');
+  const runs = (p.runs || []).map((r) => `<div class="li">${esc(r.mode)} · ${esc(r.status)}${r.session_file ? ` <button class="link" data-record="${r.run}">execution record</button>` : ''}</div>`).join('');
+  const docs = (p.documents || []).map((d) => `<div class="li"><a data-doc="${d.id}">${esc(d.title || d.id)}</a>${d.stale ? ' <span class="tag">out of date</span>' : ''}<div class="meta">${esc(d.use_when || '')}</div></div>`).join('');
+  const segs = (p.segments || []).map((s) => `<div class="li"><label><input type="checkbox" class="seg" value="${s.id}"> turn ${s.turn}: ${esc(s.text)}</label></div>`).join('');
+  const ex = (p.exchange || []).map((e) => `<div class="li"><span class="tag">${{user: 'you', ctm: 'CTM', summary: 'summary', executor: 'executor'}[e.who] || esc(e.who)}</span> ${esc((e.text || '').slice(0, 600))}</div>`).join('');
+  const hist = (p.status_history || []).map((e) => `<div class="li meta">${fmt(e.at)} ${esc(e.kind)} ${esc((e.data || {}).to || (e.data || {}).op || '')} ${esc((e.data || {}).reason || '')}</div>`).join('');
+  const rel = p.relations || {};
+  const kind = n.kind === 'goal' ? `<span class="tag">${n.summarized ? 'goal · summarized by CTM' : 'goal'}</span>` : '';
+  $('#panel').innerHTML = `
+    <div class="crumbs">${crumbs || 'at the root'}</div>
+    <h3>${esc(p.title)}</h3>
+    <div class="statusline">${kind}<button class="pill" data-act="status" aria-haspopup="menu" title="Change status"><span class="dot ${esc(p.status)}"></span>${esc(ST[p.status] || p.status)} ▾</button>
+      ${p.working_dir ? `<span title="Working directory">${esc(p.working_dir)}</span>` : n.kind === 'goal' ? '' : '<span>no working directory</span>'}${id === tree.current ? '<span class="tag">current</span>' : ''}</div>
+    ${p.purpose ? `<div class="purpose">${esc(p.purpose)}</div>` : ''}
+    <div class="actbar" role="toolbar" aria-label="Actions on this work">
+      <button class="primary${pinned ? ' on' : ''}" data-act="pin" aria-pressed="${pinned}" title="${pinned ? 'Pinned: messages all go to this work; click again to unpin' : 'Send the next message to this work (unpinned, CTM decides)'}">${pinned ? '✓ Send here' : 'Send here'}</button>
+      ${n.busy ? '<button class="danger" data-act="stop">Stop the execution…</button>' : ''}
+      ${proposals ? '<button data-act="approve">Approve the proposals</button>' : ''}
+      <button data-act="child">New child work…</button>
+      <button data-act="move">Move to…</button>
+      <button data-act="merge">Merge into…</button>
+      <button data-act="more" aria-haspopup="menu">More ▾</button>
+    </div>
+    ${(rel.children || []).length ? sec('Child works', rel.children.length, rel.children.map((c) => `<div class="li"><span class="dot ${esc((byId.get(c) || {}).status || '')}"></span>
+        <a data-open="${c}">${T(c)}</a> <span class="meta">${esc(ST[(byId.get(c) || {}).status] || '')}</span></div>`).join(''), rel.children.length <= 10) : ''}
+    ${(rel.after || []).length ? `<div class="meta">After: ${rel.after.map(T).join(', ')}</div>` : ''}
+    ${sec('Constraints', (p.constraints || []).length + (p.inherited_constraints || []).length, cons + inh, (p.constraints || []).length + (p.inherited_constraints || []).length > 0)}
+    ${sec('Decisions', (p.decisions || []).length, decs, (p.decisions || []).length > 0)}
+    ${sec('Progress (newest first)', (p.progress || []).length, prog, (p.progress || []).length > 0)}
+    ${sec('Executions', (p.runs || []).length, runs, false)}
+    ${sec('Related documents', (p.documents || []).length, docs, false)}
+    ${sec('Messages of this work', (p.segments || []).length, segs ? `<div class="meta" style="margin:4px 0">Tick the messages that really belong to another work to split them off:
+        <button data-act="split" disabled>Split the ticked ones into a new work…</button></div>${segs}` : '', false)}
+    ${emptyLine()}
+    ${sec('Exchange record', null, ex, false)}
+    ${sec('Status and change history', null, hist, false)}`;
+  $('#panel').scrollTop = top;
+}
+function renderRoot(p) {
+  const rows_ = (p.entries || []).map((e) => `<div class="li"><span class="tag">${esc(e.label)}</span> ${esc(e.text)}
+      ${e.evidence ? `<div class="meta">Grounds: ${esc(e.evidence)} · confidence: ${esc(e.confidence || '')}</div>` : ''}
+      <button class="link" data-root="${e.id}" data-text="${esc(e.text)}">Edit…</button></div>`).join('');
+  $('#panel').innerHTML = `<h3>Global</h3><div class="meta">Preferences and global constraints hold for all work; the understanding of you is only for CTM to understand your words, never given to executors.</div>
+    <div class="actbar"><button class="primary" data-act="addpref">Add a preference or global constraint…</button></div>${rows_ || '<div class="empty">No entries yet.</div>'}`;
+}
+let docSections = {};
+async function openDoc(id) {
+  docId = id; setTab('page');
+  const d = await api('/api/view/doc/' + id);
+  if (d.error) { $('#panel').innerHTML = `<div class="empty">${esc(d.error)}</div>`; return; }
+  const latest = d.latest || {};
+  docSections = latest.sections || {};
+  const body = latest.text || latest.body || Object.entries(docSections).map(([k, v]) => `## ${k}\n${v}`).join('\n\n') || '';
+  const vers = (d.versions || []).map((v) => `<div class="li meta">${fmt(v.at)} · ${esc(v.source)}${v.changed_section ? ' · changed: ' + esc(v.changed_section) : ''}</div>`).join('');
+  $('#panel').innerHTML = `<div class="crumbs"><a data-back>← Back to "${esc(titleOf(viewId))}"</a></div><h3>${esc(d.title || id)}</h3>
+    <div class="meta">${esc(d.kind || '')}${d.use_when ? ' · when to use: ' + esc(d.use_when) : ''}${d.stale ? ' · <span class="tag">out of date</span>' : ''}</div>
+    <div class="actbar"><button data-editdoc="${id}">Edit…</button></div><pre>${esc(body)}</pre>${sec('Versions', (d.versions || []).length, vers, false)}${emptyLine()}`;
+}
+async function renderQueries() {
+  const q = await api('/api/view/queries');
+  if (tab !== 'queries') return;
+  if (q.error) { $('#panel').innerHTML = `<div class="empty">${esc(q.error)}</div>`; return; }
+  $('#panel').innerHTML = '<div class="meta">Ask in the conversation; answers to what is judged a query are kept here.</div>' + ((q.items || []).map((x) => x.research ?
+    `<div class="q"><span class="tag">research</span> ${esc(x.research)} <span class="meta">${esc(x.status || '')}</span>${x.document ? ` <a data-doc="${x.document}">conclusions</a>` : ''}</div>` :
+    `<div class="q"><div><b>Q</b> (turn ${x.turn}${(x.about_titles || []).filter(Boolean).length ? ', about "' + esc(x.about_titles.filter(Boolean).join(', ')) + '"' : ''}): ${esc(x.question)}</div>
+     <div><b>A</b>${x.from_memory ? ' <span class="tag">from memory</span>' : ''}: <pre>${esc(x.answer || '(no answer yet)')}</pre></div>
+     ${x.basis ? `<div class="meta">Grounds: ${esc(typeof x.basis === 'string' ? x.basis : JSON.stringify(x.basis))}</div>` : ''}</div>`).join('') || '<div class="empty">No queries yet.</div>');
+}
+async function renderExecutions() {
+  const e = await api('/api/view/executions');
+  if (tab !== 'executions') return;
+  if (e.error) { $('#panel').innerHTML = `<div class="empty">${esc(e.error)}</div>`; return; }
+  $('#panel').innerHTML = '<div class="meta">The executors of the works; their replies go to CTM, and the conversation shows CTM\'s relays.</div>' + ((e.items || []).map((x) =>
+    `<div class="q"><a data-open="${x.task}">${esc(x.title || x.task)}</a> <span class="tag">${esc(x.form || '')}</span>
+     ${x.busy ? `<span class="badge run">working${x.tool ? ': ' + esc(x.tool) : ''}</span>` : x.queued ? '<span class="tag">queued (another executor is changing the same directory)</span>' :
+       `<span class="tag">${esc({waiting: 'waiting', idle: 'idle', working: 'working'}[x.state] || x.state || '')}</span>`}
+     <button class="link" data-record="${x.run}">execution record</button>${x.latest_output ? `<div class="meta">${esc(x.latest_output)}</div>` : ''}</div>`).join('') || '<div class="empty">No executors.</div>');
+}
+
+(() => {                                             // right-panel events (delegated)
+  const P = $('#panel');
+  P.addEventListener('click', async (e) => {
+    const t = e.target.closest('[data-act], [data-open], [data-doc], [data-record], [data-cmove], [data-cobj], [data-dropinh], [data-root], [data-editdoc], [data-back]');
+    if (!t) return;
+    const id = viewId, d = t.dataset;
+    if (d.open) { openPage(d.open); if (byId.has(d.open)) focusRowIfVisible(d.open); return; }
+    if (d.doc) return openDoc(d.doc);
+    if (d.record) return openRecord(d.record);
+    if (t.hasAttribute('data-back')) { docId = null; return openPage(viewId); }
+    if (d.cmove) {
+      const target = await pick({title: 'Where this constraint goes', note: 'It holds for every work under where it is attached', allowRoot: true, rootLabel: 'Global (holds for all work)'});
+      if (target !== undefined) { await ui('move_constraint', {constraint: d.cmove, node: target}); openPage(id, true); toast('Constraint moved'); }
+      return;
+    }
+    if (d.dropinh) {
+      if (await confirmDialog('This constraint does not apply to this work?', 'It stays on its own work; it is only no longer given to this work\'s executor.', 'Does not apply', false)) {
+        await ui('drop_inherited', {node: id, constraint: d.dropinh}); openPage(id, true); toast('No longer given to this work');
+      }
+      return;
+    }
+    if (d.cobj) {
+      const v = await form({title: 'Make it an object constraint', note: 'This requirement is a rule of an object itself; every later work touching the object will see it.', submit: 'Make it an object constraint',
+                            fields: [{name: 'object', label: 'Object (file, module, directory or interface)', required: true}]});
+      if (v) { await ui('constraint_kind', {constraint: d.cobj, kind: 'object', object: v.object}); openPage(id, true); toast('Made an object constraint'); }
+      return;
+    }
+    if (d.root) {
+      const v = await form({title: 'Edit', fields: [{name: 'text', label: 'Content', type: 'textarea', value: d.text, required: true}], submit: 'Save'});
+      if (v) { await ui('edit_root', {item: d.root, text: v.text}); openPage('ROOT', true); toast('Saved'); }
+      return;
+    }
+    if (d.editdoc) return editDoc(d.editdoc);
+    switch (d.act) {
+      case 'pin': return pin(tree.selection === id ? null : id);
+      case 'status': return statusMenu(id, t);
+      case 'stop': return stopRun(id);
+      case 'approve': return approvePlan(id);
+      case 'child': return createTask(id);
+      case 'move': return pickMove(id);
+      case 'merge': return pickMerge(id);
+      case 'more': {
+        const n = byId.get(id) || {};
+        return menuAt(t, [{label: 'Rename…', kbd: 'F2', fn: () => renameDialog(id)}, {label: 'Edit purpose…', fn: () => purposeDialog(id)}, {label: 'Change status…', fn: () => statusMenu(id, t)},
+                          ...(n.run ? [{label: 'View the execution record', fn: () => openRecord(n.run)}] : []),
+                          {sep: true}, {label: 'Copy id ' + id, fn: () => navigator.clipboard && navigator.clipboard.writeText(id)}]);
+      }
+      case 'split': return splitOut(id);
+      case 'addpref': return addPreference();
+    }
+  });
+  P.addEventListener('change', (e) => {
+    if (!e.target.classList.contains('seg')) return;
+    const b = $('[data-act="split"]', P); if (b) b.disabled = !P.querySelector('.seg:checked');
+  });
+})();
+function focusRowIfVisible(id) { if (document.getElementById('ti-' + id)) focusRow(id); else renderTree(); }
+async function splitOut(node) {
+  const segs = [...document.querySelectorAll('.seg:checked')].map((x) => x.value);
+  if (!segs.length) return;
+  const v = await form({title: `Split the ${segs.length} ticked messages into a new work`, submit: 'Split',
+                        fields: [{name: 'title', label: 'Title of that work', required: true}, {name: 'purpose', label: 'Purpose (optional)', type: 'textarea', rows: 2}]});
+  if (!v) return;
+  await ui('split', {node, title: v.title, purpose: v.purpose, segments: segs});
+  await refreshTree(); openPage(node, true); toast(`Split off "${v.title}"`);
+}
+async function addPreference() {
+  const v = await form({title: 'Add a preference or global constraint', note: 'It holds for all your work and is given to every executor.', submit: 'Add',
+                        fields: [{name: 'text', label: 'Content', type: 'textarea', required: true}]});
+  if (v) { await ui('add_preference', {text: v.text}); openPage('ROOT', true); toast('Added'); }
+}
+async function editDoc(id) {
+  const names = Object.keys(docSections);
+  const opts = [...names.map((k) => ({value: k, label: 'Section: ' + (k || '(untitled)')})), {value: '__all__', label: 'Whole document'}];
+  const v = await form({title: 'Edit document', submit: 'Save',
+                        fields: [{name: 'section', label: 'Which part', type: 'select', options: opts, value: opts[0].value},
+                                 {name: 'text', label: 'New content', type: 'textarea', rows: 10, value: names.length ? docSections[names[0]] : '', required: true}],
+                        onChange: (frm) => { const s = frm.elements.section.value; if (s !== '__all__') frm.elements.text.value = docSections[s] || ''; }});
+  if (!v) return;
+  const r = await ui('edit_doc', {doc: id, section: v.section === '__all__' ? null : v.section, text: v.text});
+  if (r.result && r.result.proposal) append({kind: 'notice', text: 'This edit disagrees with an existing decision; CTM proposes updating it: ' + JSON.stringify(r.result.proposal)});
+  openDoc(id); toast('Saved');
+}
+
+// ======================================================================================================================
+// Conversation
+// ======================================================================================================================
+function render(it) {
+  const div = document.createElement('div');
+  div.className = 'it';
+  if (it.kind === 'user') {
+    div.className += ' user';
+    div.innerHTML = `<div class="meta"><span>turn ${it.turn}${it.selection ? ' · sent to "' + esc(titleOf(it.selection)) + '"' : ''}</span>`
+      + `<button class="link" data-reattach="${it.turn}" title="This message really belongs to another work (changes memory only, nothing is run again)">Move…</button></div><div class="text">${esc(it.text)}</div>`;
+  } else if (it.kind === 'relay') {
+    if (it.node) titles[it.node] = it.title;
+    const alts = (it.alternatives || []).map((a) => `<button class="link" data-redirect="${it.turn}" data-node="${a.id}">Deliver to "${esc(a.title)}" instead</button>`).join(' ');
+    const ans = (it.answers || []).filter((a) => a.answer).map((a) => `<div class="ctm"><div class="body">${esc(a.answer)}</div></div>`).join('');
+    div.className += ' route';
+    div.innerHTML = `→ <span class="to">${it.title ? '"' + esc(it.title) + '"' : '(not for a particular work)'}</span><span class="tag">${esc(TO[it.to] || it.to || '')}</span>
+      <span>${esc(it.text || '')}</span>${it.seconds != null ? `<span class="meta secs" title="Time CTM took for this message"> ${it.seconds}s</span>` : ''}
+      ${alts ? ' · it may also be: ' + alts : ''} <button class="link" data-redirect="${it.turn}" title="Give this message to another work">Deliver elsewhere…</button>${ans}`;
+  } else if (it.kind === 'ctm') {
+    div.className += ' ctm' + (it.done ? ' done' : '') + (it.proxy ? ' proxy' : '');
+    const head = it.proxy ? '' : `<div class="meta">"${esc(it.title)}"${it.query ? ': the answer (the full record is in the query panel)' : it.done ? ': done' : ': progress'}</div>`;
+    const detail = it.query && it.detail && it.detail !== it.text ? `<details><summary>Full answer</summary><pre>${esc(it.detail)}</pre></details>` : '';
+    div.innerHTML = `${head}${relayBody(it.text || '')}${detail}`;
+  } else if (it.kind === 'pending') {
+    div.className += ' pending'; div.innerHTML = it.type === 'proposal'
+      ? `<b>CTM's proposal${it.withdrawn ? ' (withdrawn; no answer needed)' : ''}:</b> ${it.title ? `"${esc(it.title)}" ` : ''}${esc(it.text)}<div class="meta">${it.withdrawn ? 'The rule no longer holds' : 'Just answer; if you agree, this work\'s executor writes it'}</div>`
+      : `<b>Needs your decision:</b> "${esc(it.title)}" ${esc(it.text)}<div class="meta">Just answer (it goes to this work)</div>`;
+  } else if (it.kind === 'dialog') {
+    const r = it.request || {};
+    div.className += ' dialogitem'; div.dataset.run = it.run; div.dataset.req = r.id;
+    let ctl = '';
+    if (r.method === 'select') ctl = (r.options || []).map((o, i) => `<button data-dlg="value" data-i="${i}">${esc(o)}</button>`).join(' ');
+    else if (r.method === 'confirm') ctl = '<button data-dlg="yes">Yes</button> <button data-dlg="no">No</button>';
+    else ctl = `<input class="dlgval" aria-label="Answer"> <button data-dlg="text">OK</button>`;
+    div.innerHTML = `<b>"${esc(it.title)}" needs your confirmation:</b> ${esc(r.title || '')} ${esc(r.message || '')}<div style="margin-top:4px">${ctl} <button data-dlg="cancel">Cancel</button></div>`;
+    div._options = r.options || [];
+  } else if (it.kind === 'plan') {
+    div.className += ' plan';
+    const rows_ = (it.subtasks || []).map((c) => `<div>· ${esc(c.title)} <span class="tag">${esc(ST[c.status] || c.status)}</span></div>`).join('');
+    div.innerHTML = `<b>Plan of "${esc(it.title)}"</b> (authorized steps start right away; the others are proposals)${rows_}
+      ${it.approved ? '<div class="meta">Approved</div>' : `<button data-approve="${it.task}">Approve these subtasks</button> <span class="meta">or edit or delete them in the tree first; you can also just say it in the conversation</span>`}`;
+  } else if (it.kind === 'notice') {
+    div.className += ' notice'; div.textContent = it.text;
+  } else if (it.kind === 'ctmnote') {
+    div.className += ' notice'; div.innerHTML = `<details${it.open ? ' open' : ''}><summary>CTM recorded (turn ${it.turn})</summary><pre>${esc(it.text)}</pre></details>`;
+  } else {
+    return null;
+  }
+  return div;
+}
+function relayBody(text) {                        // what the reply leaves for the user: a numbered block answerable by number
+  const mark = 'For you to decide, or not done yet:', k = text.indexOf(mark);
+  if (k < 0) return `<div class="body">${esc(text)}</div>`;
+  const items = text.slice(k + mark.length).split('\n').map((l) => l.trim()).filter(Boolean).map((l) => l.replace(/^\d+[.)]\s*/, ''));
+  const before = text.slice(0, k).trim();
+  return `${before ? `<div class="body">${esc(before)}</div>` : ''}<div class="asks"><b>For you to decide, or not done yet</b><ol>${items.map((x) => `<li>${esc(x)}</li>`).join('')}</ol>`
+    + `<div class="meta">You can answer by number, for example "1 yes, 2 not now"</div></div>`;
+}
+function hint(show) {                               // an empty conversation says how it is used
+  const h = $('#conv .hint');
+  if (!show) { if (h) h.remove(); return; }
+  if (h) return;
+  const d = document.createElement('div'); d.className = 'hint';
+  d.innerHTML = `<b>Just say what you want done or want to know.</b> CTM gives what is to be done to the executor of the right work; questions it can answer from memory it answers, the others go to a read-only execution.<br>`
+    + `No need to name the work: just go on from the last thing; to switch to another work, select it in the tree on the left, or click "Send here" on its page.<br>`
+    + `When an executor finishes, is blocked or needs your decision, the result is relayed here; the full reply is under "Executions" on the right.`;
+  $('#conv').appendChild(d);
+}
+function append(it) {
+  if (it.kind !== 'notice') hint(false);
+  const d = render(it); if (!d) return;
+  const conv = $('#conv');
+  const atBottom = conv.scrollHeight - conv.scrollTop - conv.clientHeight < 80;
+  conv.appendChild(d);
+  if (atBottom) conv.scrollTop = conv.scrollHeight;
+  if (it.kind === 'ctm' && it.query && tab === 'queries') renderQueries();
+}
+(() => {                                             // conversation events (delegated)
+  $('#conv').addEventListener('click', async (e) => {
+    const t = e.target.closest('[data-reattach], [data-redirect], [data-approve], [data-dlg]'); if (!t) return;
+    const d = t.dataset;
+    if (d.reattach) {
+      const node = await pick({title: `Which work the message of turn ${d.reattach} really belongs to`, note: 'Changes only where memory keeps it; nothing is run again'});
+      if (node !== undefined) { await ui('reattach', {turn: +d.reattach, node}); toast(`Moved to "${titleOf(node)}"`); }
+    } else if (d.redirect) {
+      const node = d.node || await pick({title: `Which work the message of turn ${d.redirect} goes to instead`, note: "That work's executor receives the message"});
+      if (node !== undefined) { await ui('redirect', {turn: +d.redirect, node}); toast(`Delivered to "${titleOf(node)}"`); }
+    } else if (d.approve) {
+      approvePlan(d.approve);
+    } else if (d.dlg) {
+      const box = t.closest('.dialogitem'), run = box.dataset.run, id = box.dataset.req;
+      const ans = d.dlg === 'value' ? {value: box._options[+d.i]} : d.dlg === 'yes' ? {confirmed: true} : d.dlg === 'no' ? {confirmed: false}
+                : d.dlg === 'text' ? {value: $('.dlgval', box).value} : {cancelled: true};
+      await ui('dialog', Object.assign({run, id}, ans));
+      box.querySelectorAll('button, input').forEach((x) => x.disabled = true);
+    }
+  });
+})();
+
+// ---- where the next message goes -----------------------------------------------------------------------------------
+function renderTarget() {
+  const p = tree.selection;
+  $('#target').innerHTML = p
+    ? `<span>Send to</span><span class="chip pinned" title="${esc([...pathOf(p), p].map(titleOf).join(' › '))}">"${esc(titleOf(p))}"<button class="x" data-unpin aria-label="Unpin; CTM decides">×</button></span>
+       <span class="meta">While pinned, messages all go to this work</span>`
+    : `<span>Send to</span><button class="chip" data-choose title="Pin a work">CTM decides ▾</button>
+       ${tree.current ? `<span class="meta">Current work "${esc(titleOf(tree.current))}": messages that name no object go here</span>` : ''}`;
+}
+$('#target').addEventListener('click', async (e) => {
+  if (e.target.closest('[data-unpin]')) return pin(null);
+  if (e.target.closest('[data-choose]')) {
+    const t = await pick({title: 'Which work the next message goes to', note: 'While pinned, messages all go to this work'});
+    if (t !== undefined) pin(t);
+  }
+});
+async function send() {
+  const text = $('#input').value.trim();
+  if (!text) return;
+  const b = $('#send'); b.disabled = true; b.textContent = 'CTM is working…';
+  $('#input').value = '';
+  try {
+    const r = await api('/api/message', {text});
+    if (r.error) append({kind: 'notice', text: 'Error: ' + r.error});
+  } finally { b.disabled = false; b.textContent = 'Send'; }
+}
+
+// ======================================================================================================================
+// Global wiring
+// ======================================================================================================================
+let seenActive = null, busyTimer = null;
+function revealActive() {                         // work that starts running shows up even under branches the user had collapsed
+  const now = new Set(tree.nodes.filter((n) => n.busy || n.tidying).map((n) => n.id));
+  const fresh = seenActive === null ? [...now] : [...now].filter((id) => !seenActive.has(id));
+  seenActive = now;
+  if (!fresh.length) return [];
+  for (const id of fresh) { let x = parentOf(id); while (x) { userClosed.delete(x); x = parentOf(x); } }
+  lsSet('ctm-closed', userClosed);
+  return fresh;
+}
+async function refreshTree() {
+  tree = await api('/api/tree'); index();
+  const fresh = revealActive();
+  renderTree();
+  const T = $('#tree');
+  if (fresh.length && !T.matches(':hover')) { const r = $('#ti-' + fresh[0]); if (r) r.scrollIntoView({block: 'nearest'}); }
+  $('#ctm-busy').hidden = !tree.ctm_busy;
+  clearTimeout(busyTimer); if (tree.ctm_busy) busyTimer = setTimeout(refreshTree, 3000);   // until CTM's step ends
+  if (tab === 'executions') renderExecutions();
+}
+$('#send').onclick = send;
+$('#input').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); } });
+$('#tabs').addEventListener('click', (e) => { const b = e.target.closest('[data-tab]'); if (b) showTab(b.dataset.tab); });
+$('#btn-new').onclick = () => createTask();
+$('#btn-collapse').onclick = () => { userOpen = new Set(); userClosed = new Set(); lsSet('ctm-open', userOpen); lsSet('ctm-closed', userClosed); renderTree(); };
+$('#btn-maintain').onclick = async () => { const b = $('#btn-maintain'); b.disabled = true; b.textContent = 'Tidying…';
+  try { const r = await ui('maintain'); toast(`Tidied: ${r.ops ?? 0} adjustments`); await refreshTree(); } finally { b.disabled = false; b.textContent = 'Tidy tree'; } };
+$('#btn-keys').onclick = () => {
+  const d = document.createElement('dialog');
+  d.innerHTML = `<h3>Keyboard shortcuts</h3><table class="keys">
+    <tr><td>/</td><td>Filter the works in the tree</td></tr><tr><td>↑ ↓ Home End</td><td>Move in the tree</td></tr>
+    <tr><td>→ ←</td><td>Expand, collapse; or go to a child, the parent</td></tr><tr><td>Enter</td><td>Open the page</td></tr>
+    <tr><td>F2</td><td>Rename</td></tr><tr><td>Shift+F10 or right click</td><td>The menu of actions on this work</td></tr>
+    <tr><td>*</td><td>Expand all works on the same level</td></tr><tr><td>Type a letter</td><td>Jump to a work starting with it</td></tr>
+    <tr><td>Drag and drop</td><td>Drag a work onto another to make it part of it; onto "Global" to put it back at the root</td></tr>
+    <tr><td>Enter / Shift+Enter</td><td>Send / new line in the input box</td></tr></table>
+    <div class="dlg-actions"><button class="primary" autofocus>Got it</button></div>`;
+  document.body.appendChild(d); $('button', d).onclick = () => { d.close(); d.remove(); }; d.addEventListener('close', () => d.remove()); d.showModal();
+};
+const F = $('#filter');
+F.addEventListener('input', () => { filter = F.value; renderTree(); });
+F.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') { F.value = ''; filter = ''; renderTree(); focusRow(focusId); e.preventDefault(); }
+  else if (e.key === 'ArrowDown' || e.key === 'Enter') { const r = rows[1] || rows[0]; if (r) focusRow(r.id); e.preventDefault(); }
+});
+document.addEventListener('keydown', (e) => {
+  const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName) || document.querySelector('dialog[open]');
+  if (e.key === '/' && !typing) { e.preventDefault(); F.focus(); F.select(); }
+});
+
+(() => {                                             // the right panel's width: drag its divider; double-click restores
+  const right = $('#right'), sp = $('#split2');
+  const saved = parseInt(localStorage.getItem('ctm-right-w') || '0', 10);
+  if (saved) right.style.width = saved + 'px';
+  let x0 = 0, w0 = 0;
+  const move = (e) => { right.style.width = Math.round(Math.max(260, Math.min(innerWidth * 0.6, w0 - (e.clientX - x0)))) + 'px'; };
+  const up = () => {
+    sp.classList.remove('drag'); document.body.style.userSelect = ''; document.body.style.cursor = '';
+    document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', up);
+    localStorage.setItem('ctm-right-w', String(parseInt(right.style.width, 10)));
+  };
+  sp.addEventListener('mousedown', (e) => {
+    x0 = e.clientX; w0 = right.getBoundingClientRect().width; sp.classList.add('drag');
+    document.body.style.userSelect = 'none'; document.body.style.cursor = 'col-resize';
+    document.addEventListener('mousemove', move); document.addEventListener('mouseup', up); e.preventDefault();
+  });
+  sp.addEventListener('dblclick', () => { right.style.width = ''; localStorage.removeItem('ctm-right-w'); });
+})();
+(() => {                                             // the tree panel's width: drag the divider; double-click restores
+  const left = $('#left'), sp = $('#split');
+  const saved = parseInt(localStorage.getItem('ctm-left-w') || '0', 10);
+  if (saved) left.style.width = saved + 'px';
+  let x0 = 0, w0 = 0;
+  const move = (e) => { left.style.width = Math.round(Math.max(200, Math.min(innerWidth * 0.7, w0 + e.clientX - x0))) + 'px'; };
+  const up = () => {
+    sp.classList.remove('drag'); document.body.style.userSelect = ''; document.body.style.cursor = '';
+    document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', up);
+    localStorage.setItem('ctm-left-w', String(parseInt(left.style.width, 10)));
+  };
+  sp.addEventListener('mousedown', (e) => {
+    x0 = e.clientX; w0 = left.getBoundingClientRect().width; sp.classList.add('drag');
+    document.body.style.userSelect = 'none'; document.body.style.cursor = 'col-resize';
+    document.addEventListener('mousemove', move); document.addEventListener('mouseup', up); e.preventDefault();
+  });
+  sp.addEventListener('dblclick', () => { left.style.width = ''; localStorage.removeItem('ctm-left-w'); });
+})();
+$('#pend').addEventListener('click', (e) => { const el = e.target.closest('[data-open]'); if (el && el.dataset.open) openPage(el.dataset.open); });
+
+(async () => {
+  await refreshTree();
+  showTab('page');
+  const {items} = await api('/api/items');
+  (items || []).forEach(append);
+  hint(!(items || []).some((it) => it.kind !== 'notice'));
+  const es = new EventSource('/api/events');
+  let timer = null;
+  const later = () => { clearTimeout(timer); timer = setTimeout(refreshTree, 300); };
+  es.onmessage = (m) => {
+    const ev = JSON.parse(m.data);
+    if (ev.type === 'item') append(ev.item);
+    else if (ev.type === 'tree' || ev.type === 'activity') later();
+    else if (ev.type === 'error') append({kind: 'notice', text: ev.text});
+  };
+})();
+</script>
+</body>
+</html>

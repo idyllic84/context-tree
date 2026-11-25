@@ -1,13 +1,15 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "context-tree"
 version = "0.1.0.dev0"
-description = "Task-structured history indexing and selective context assembly for agents"
+description = "A context tree manager: one assistant between a user and coding agents, with long-term memory of the work and small, sufficient context for each execution"
 readme = "README.md"
 requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
 dependencies = ["requests>=2.31,<3"]
 classifiers = [
   "Development Status :: 3 - Alpha",
@@ -15,14 +17,18 @@ classifiers = [
   "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 
+[project.optional-dependencies]
+token-count = ["tiktoken>=0.9,<1"]
+
 [project.scripts]
-context-tree = "context_tree.pipeline.cli:main"
-context-tree-benchmark = "context_tree.tools.benchmark_models:main"
-context-tree-export = "context_tree.tools.export_obsidian:main"
-context-tree-check = "context_tree.tools.check:main"
+context-tree = "context_tree.pilot.__main__:main"
+context-tree-auth = "context_tree.tools.auth:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools]
 include-package-data = false
+
+[tool.setuptools.package-data]
+"context_tree.pilot" = ["static/*"]   # the pilot page

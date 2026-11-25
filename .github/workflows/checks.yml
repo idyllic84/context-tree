@@ -16,6 +16,6 @@ jobs:
           python-version: ${{ matrix.python }}
       - run: python -m pip install .
       - run: context-tree --help
-      - run: context-tree-check
-      - run: context-tree-benchmark --offline-check
-      - run: python -m context_tree.stages.branches.evaluate --offline-check
+      - name: offline tests
+        shell: bash
+        run: for f in tests/test_*.py; do PYTHONPATH=src python "$f" || exit 1; done

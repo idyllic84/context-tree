@@ -30,4 +30,6 @@ artifacts/
 results/
 exports/
 credentials.json
+copilot-credentials.json
+copilot-device-pending.json
 device_id

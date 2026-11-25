@@ -1,31 +1,35 @@
 # Security and privacy
 
-## Data boundary
+## What leaves the machine
 
-Context Tree processes conversations, source file paths, instructions and model-generated summaries. These may contain secrets, confidential code, personal information or untrusted instructions.
+CTM sends the user's messages, recent conversation, memory items, executor replies, file paths and tool traces to the configured
+model provider (GitHub Copilot models through the project's own credentials). Embedding requests send their input text too. Local
+SQLite storage does not make the system local-only.
 
-- Online extraction, review, framing and retrieval send selected text to the configured provider.
-- Embedding requests also transmit their input text; local SQLite storage does not make the whole pipeline local-only.
-- No comprehensive secret-redaction or prompt-injection defense is implemented.
-- Historical text and retrieved snippets are evidence, not authority to execute commands or override current instructions.
-- Model-generated tree mutations and JSON are validated in places, but not every adversarial shape is handled safely. Use controlled inputs.
+## What runs, and what it may change
 
-## Safe defaults and operator responsibilities
+- **Executors** are pi coding-agent sessions started in the works' directories. They read and change files and run commands with
+  the user's permissions. pi's own tool permissions apply; CTM adds an execution contract and a control step that stops, continues or
+  asks the user, and asks before irreversible actions it can recognize. This is a judgment by a model, not a sandbox.
+- **CTM itself** writes only its own data (the CTM directory) and `ctm.md` files next to objects. It adds `ctm.md` to the repository's
+  local exclude list (`.git/info/exclude`) so that it is never committed. Executors only read `ctm.md`.
+- There is no comprehensive prompt-injection defense. Text from files, web pages and tool results is treated as evidence, never as
+  the user's instruction, but a model can still be misled. Use the system on data and accounts you are authorized to use.
 
-CLI operations requiring provider access require `--allow-network`. Stage runners default to blocking transport. Python library calls are lower-level APIs: callers are responsible for their network policy.
+## Private data
 
-Credentials are read only from explicitly named environment variables. No original application keychain is accessed. Use a secret manager or temporary shell environment; do not commit credentials. A short-lived bearer token must be replaced when it expires.
+The CTM directory (memory, conversation, executor sessions, logs, usage records), session archives, credentials, evaluation data and
+model outputs are private. Keep them outside Git; `.gitignore` is a guardrail, not a security boundary. The SQLite files are not
+encrypted by this application; filesystem permissions, disk encryption and backups are the operator's responsibility.
 
-Use a selected source directory, a session filter and a finite request budget. Without a session filter, sync can process every discovered conversation. Review the payload before authorizing its transmission. Only use accounts, endpoints and data you are authorized to access.
-
-Databases, cache files, device IDs, exported vaults and model evaluation results are private artifacts. `.gitignore` is a guardrail, not a security boundary. Do not store them under versioned examples. Inspect files before publishing or sharing.
-
-The SQLite database is not encrypted by this application. Filesystem permissions, disk encryption, backup policies and deletion remain the operator's responsibility. Exported Obsidian content can reveal full paths and session relationships.
+Credentials come from explicit environment variables or the opt-in device login of `context-tree-auth`, which never displays access
+tokens and refuses to store credentials inside a Git worktree. See [docs/authentication.md](docs/authentication.md).
 
 ## Reporting
 
-No public repository or security-reporting contact has been configured. Do not invent a reporting address or post private logs publicly. Contact the person who supplied this repository through an existing private channel; include minimal sanitized reproduction steps, not tokens or full conversation transcripts.
+No public security contact has been configured. Do not post private logs or transcripts publicly; contact the maintainer through an
+existing private channel with minimal, sanitized reproduction steps.
 
 ## Release status
 
-This is a research prototype with [licensing pending](LICENSE-STATUS.md). Packaging checks and offline fixtures are not a security audit. Public release requires a fresh privacy, authorization and dependency review.
+This is a research prototype under the [MIT License](LICENSE), provided as is. Offline tests are not a security audit.

@@ -1,94 +1,56 @@
 # Context Tree
 
-**把海量历史整理成任务树，定位当前相关分支，排除无关信息，只给 agent 此刻所需的上下文。**
+[English](README.md)
 
-[English](README.md) · [项目目标](docs/goals.md) · [架构](docs/architecture.md) · [逐步骤运行](docs/stages.md)
+Context Tree 研究**上下文树管理器（CTM）**：用户与执行工作的编码 agent 之间的一个助手。用户只和 CTM 说话，在一条连续的对话里同时推进
+多项工作。CTM 为**工作本身**保存长期记忆，判断每条消息属于哪项工作，并给每次执行少而够用的上下文。
 
-本项目由 Companion C Python 原型独立整理而来。核心不是“让 agent 记住更多历史”，而是把历史保留在外部结构里，让 agent 不必持续携带、重读和重建全部会话。
+agent 的会话会遗忘、会被替换、会被压缩。CTM 在它们之外保持连续：
 
-## 核心思路
+- **以工作为单位的记忆**：Goal 与 Task 组成的树，每项工作记着定下了什么、哪些规则成立、做到了哪里、与其他工作的关系。
+  规则有作用范围（一项任务、一个目标、全部工作，或一个对象如某个模块），沿树向下继承。
+- **用户的话为准**：每个条目保留时间和“被谁替换”，只有现行条目交给执行者；执行者的报告不能替换用户说过的话。
+- **定位**：每条消息（或其中一部分）送到对的工作：接着做、在合适的目标下新建、旁问、控制某个执行者，或只是让 CTM 记住。
+- **少而够用的上下文**：执行者的上下文由代码从记忆中拼装，有预算，而不是由模型自由书写。
+- **分块度量**：每一类判断（送达、记忆、上下文、进度、控制、查询、维护、转述）用参照输入单独评估。
 
-1. 按用户输入及其触发的回复、工具操作组织 turn。
-2. 提取话语行为、约束和确认／否定引用，构建 Goal／Task／Subtask 树。
-3. 做结构 review 与证据核验，再生成与来源关联的紧凑记忆。
-4. 用语义、文件和 identifier 找到候选节点，依据树拓扑构造分支。
-5. 在给定状态下决定展开、排除或停止；单独的 context 步骤整理必要证据。
+状态：研究原型，单用户，本地运行（在 Windows 上开发）。代码、提示与页面用英文；模型为你写的内容（工作标题、总结、回答）跟随你说话的语言；设计与评估文档用中文。许可为[MIT](LICENSE)。
 
-树负责工作关系和上下文归属，embedding 负责候选查找。当前向量召回仍为平扫，不能宣称已实现 O(log n) 树检索；也没有自动接管外部 agent 的运行时上下文窗口。
+## 运行方式
 
-## 当前状态
+1. 消息到来：一次轻量调用读出它怎样指向工作（接续、指代、点名的对象、时间）。
+2. 按这些指向找候选（最近的工作、碰过所点对象的工作、当前工作）。
+3. 送达调用决定每部分送到哪里、以什么方式送。
+4. 执行者随即开工（pi 编码 agent 会话，同一工作目录同时只有一个修改者），上下文从记忆拼装；接着用的会话只收到上次以来的变化。
+5. 派发之后写记忆：约束、决定、事实与指导，每条与最相近的现行条目比对，记下它替换了什么。
+6. 执行者的答复总结为进度；控制一步决定继续、停下还是问用户；遗留事项成为对话中带编号的待决事项。
+7. 定期维护带着后来的信息重看树（合并、改挂、修正状态、上移共同的规则）。
 
-- 研究原型，不是生产就绪的记忆平台。
-- 已支持 Claude Code JSONL；多 agent、多设备同步和自动 context paging 尚未完成。
-- 模型传输为实验性 Copilot 适配，必须显式配置凭据和允许联网。
-- **许可证待确认，目前没有授予开源许可。** 详见 [许可状态](LICENSE-STATUS.md)。
-- 本仓库不包含真实会话、数据库、凭据或原始评测输出。
+完整设计见 [docs/ctm-concept-model.zh-CN.md](docs/ctm-concept-model.zh-CN.md)；实现了哪些、各部分怎样评估见
+[docs/ctm-implementation-plan.zh-CN.md](docs/ctm-implementation-plan.zh-CN.md) 第 2 节。
 
-## 安装与离线验证
+## 依赖与运行
 
-在仓库根目录，使用 Python 3.10+：
+- Python 3.10+ 与 `requests`；模型经 GitHub Copilot 账号访问，用项目自带的设备登录（[docs/authentication.md](docs/authentication.md)）；
+  执行者是 [pi 编码 agent](https://github.com/earendil-works/pi) 的命令行（`PATH` 上的 `pi`，或某个构建的 `cli.js`）；git。
 
 ```sh
-python3 -m venv .venv
-. .venv/bin/activate
 python -m pip install -e .
-context-tree --help
-context-tree-check
-context-tree-benchmark --offline-check
+context-tree-auth login --allow-network
+context-tree --root <CTM目录> --open
 ```
 
-安装可能下载依赖；离线检查不调用模型、不需要认证，不读取你的会话。Windows 使用 `.venv\Scripts\Activate.ps1` 激活环境；Windows 上线传输尚未验证。
+CTM 目录保存运行数据（记忆、对话、执行者会话、日志），属于私人数据，放在 Git 之外。可配置的环境变量见 [README.md](README.md#configuration)。
 
-## 每一步独立运行和评估
-
-```text
-src/context_tree/
-  common/         模型调用、数据契约、配置、存储、通用 CLI／评估工具
-  stages/
-    ingest/       来源解析
-    extract/      L1 单元提取
-    tree/         L2 建树与状态机
-    review/       结构修正
-    reflexion/    证据核验
-    framing/      忠实压缩
-    emit/         实体与关联生成
-    resolve/      实体处理
-    index/        向量／字面索引
-    recall/       候选召回
-    branches/     结构分支组织
-    select/       给定状态下的检索动作
-    context/      给定证据的上下文装配
-  pipeline/       全流程编排
-```
-
-每个步骤均有 `processor.py`、`run.py`、`evaluate.py`。例如：
+## 检查
 
 ```sh
-mkdir -p artifacts
-python -m context_tree.stages.ingest.run --example --output artifacts/input.json
-python -m context_tree.stages.ingest.run --input artifacts/input.json --output artifacts/turns.json
-python -m context_tree.stages.ingest.evaluate --offline-check
-python -m context_tree.stages.extract.run --example
-python -m context_tree.stages.tree.evaluate --offline-check
+for f in tests/test_*.py; do PYTHONPATH=src python "$f" || exit 1; done
 ```
 
-真实模型调用需要 `--allow-network` 和显式环境凭据；`--example` 只输出合成输入，不执行该步骤。完整输入输出说明见 [阶段契约](docs/stages.md)。
+离线测试替换了所有模型调用；浏览器检查会改数据，只对 CTM 目录的副本运行，见 [docs/development.md](docs/development.md)。
 
-## 模型选择原则
+## 文档
 
-每一步目标不同，分别评估，不找“所有步骤的冠军”：
-
-- L1 看信息、act 和引用是否完整；L2 看层级、归属、scope。
-- Review 看修正和误改；Reflexion 看证据能否支持操作。
-- Framing 看忠实度、标识符、数值、否定和压缩。
-- Select 只评给定状态下的下一步动作；Context 在固定证据上评必要信息和无关内容。
-
-端到端测试只验证集成，不能代替步骤模型排名。现有模型配置来自少量合成样本，最新独立评估未覆盖 Gemini 3.8，不能视为最优定论。详见 [评估方法](docs/evaluation.md)。
-
-## 文档阅读顺序
-
-先读 [目标](docs/goals.md)、[架构](docs/architecture.md)、[配置](docs/configuration.md)、[开发](docs/development.md) 和 [路线图](docs/roadmap.md)。
-
-十份旧研发文档完整保留在 [历史档案](docs/history/README.md)，但旧草案、模型、指标及引用不代表当前事实。迁移及最近修改见 [开发记录](docs/development-log.md)；研究对照和引用纠错见 [research](docs/research.md)。
-
-使用私有日志前请阅读 [安全说明](SECURITY.md)：文本和文件路径可能发送给模型，数据库和导出包含私人信息，不要公开。
+从 [docs/README.md](docs/README.md) 开始：概念模型、目标与方法（含未来方向与先后顺序）、实现规划、分块评估、相关工作与设计取舍的演进。
+另见 [CONTRIBUTING.md](CONTRIBUTING.md) 与 [SECURITY.md](SECURITY.md)。

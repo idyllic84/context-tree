@@ -1,21 +1,25 @@
 """Copilot chat/Responses streaming, stage settings, request budgets and embeddings."""
 
+import re
 import json
 import time
 import signal
 import os
 import threading
+import hashlib
 from contextlib import contextmanager
 import requests
+
+from . import auth
 
 MODEL_CHEAP = "gemini-3.6-flash"
 MODEL_SMART = "gemini-3.6-flash"
 STAGES = ("extract", "tree", "review", "reflexion", "framing", "resolve", "retrieve", "context")
 DEFAULT_STAGE_MODELS = {
-    "extract": "gpt-5.6-sol-fast", "tree": "grok-4.6",
-    "review": "gemini-3.6-flash", "reflexion": "gpt-5.6-sol-fast",
-    "framing": "gpt-5.6-sol-fast", "resolve": "gemini-3.6-flash",
-    "retrieve": "gemini-3.6-flash", "context": "gpt-5.6-sol-fast",
+    "extract": "gemini-4-argon", "tree": "grok-4.6",
+    "review": "gemini-3.6-flash", "reflexion": "gemini-4-argon",
+    "framing": "gemini-4-argon", "resolve": "gemini-3.6-flash",
+    "retrieve": "gemini-3.6-flash", "context": "gemini-4-argon",
 }
 DEFAULT_STAGE_EFFORTS = {
     stage: "minimal" if model.startswith("gemini-") else "low"
@@ -58,10 +62,13 @@ def configure_stages(model: str | None = None, overrides: list[str] = (),
 
 _cached_token = None
 _cached_token_expires_at = 0.0  # epoch seconds; 0 = unknown
+_cached_auth_source = None
+_cached_api_base = auth.DEFAULT_API_BASE
 
 # Module-level Session for connection pooling. Pool size set generously to
 # allow framing-pass concurrency room (currently sequential but future-proofed).
 _SESSION = requests.Session()
+_DRAIN = os.environ.get('CT_LLM_DRAIN', '1') == '1'   # read streams to their end so connections are reused
 _adapter = requests.adapters.HTTPAdapter(pool_connections=4, pool_maxsize=16)
 _SESSION.mount("https://", _adapter)
 
@@ -97,47 +104,41 @@ def _set_alarm(seconds):
 
 
 def get_token(force_refresh: bool = False) -> str:
-    """Get Copilot token (cached). force_refresh ignores cache.
-
-    Copilot tokens last ~30 min. Cache stores expires_at when known
-    (token endpoint returns expires_at). Auto-refreshes if expired.
-    """
-    global _cached_token, _cached_token_expires_at
-
+    """Explicit environment overrides, then our opt-in private authentication file."""
+    global _cached_token, _cached_token_expires_at, _cached_auth_source, _cached_api_base
     now = time.time()
     direct = os.environ.get("CONTEXT_TREE_COPILOT_TOKEN", "").strip()
+    pat = os.environ.get("CONTEXT_TREE_GITHUB_TOKEN", "").strip()
     if direct:
         if force_refresh:
             raise RuntimeError("Copilot bearer token was rejected; replace CONTEXT_TREE_COPILOT_TOKEN")
-        return direct
-    pat = os.environ.get("CONTEXT_TREE_GITHUB_TOKEN", "").strip()
-    if not pat:
-        raise RuntimeError("Set CONTEXT_TREE_COPILOT_TOKEN or CONTEXT_TREE_GITHUB_TOKEN explicitly")
-    if (not force_refresh) and _cached_token and now < _cached_token_expires_at - 60:
-        return _cached_token
-
-    resp = _SESSION.get(
-        "https://api.github.com/copilot_internal/v2/token",
-        headers={"Authorization": f"token {pat}", "Accept": "application/json",
-                 "User-Agent": "GitHubCopilotChat/0.26.7"},
-        timeout=30,
-    )
-    resp.raise_for_status()
-    data = resp.json()
-    _cached_token = data["token"]
-    _cached_token_expires_at = float(data.get("expires_at", now + 1500))
+        source = "direct:" + hashlib.sha256(direct.encode()).hexdigest()
+        data = {"copilot_token": direct, "expires_at": 0, "api_base": auth.api_base_from_token(direct)}
+    elif pat:
+        source = "github:" + hashlib.sha256(pat.encode()).hexdigest()
+        if not force_refresh and source == _cached_auth_source and _cached_token and now < _cached_token_expires_at - 60:
+            return _cached_token
+        data = auth.exchange_github_token(pat, session=_SESSION)
+    else:
+        data = auth.get_saved_token(force_refresh=force_refresh, session=_SESSION)
+        source = "saved:" + hashlib.sha256(data["copilot_token"].encode()).hexdigest()
+    if source != _cached_auth_source:
+        _model_cache.clear()
+    _cached_auth_source = source
+    _cached_token = data["copilot_token"]
+    _cached_token_expires_at = data["expires_at"]
+    _cached_api_base = auth.validate_api_base(data["api_base"])
     return _cached_token
 
 
+def get_api_base() -> str:
+    get_token()
+    return _cached_api_base
+
+
 def _headers(token: str) -> dict:
-    return {
-        "Authorization": f"Bearer {token}",
-        "Editor-Plugin-Version": "copilot-chat/0.26.7",
-        "Editor-Version": "vscode/1.99.0",
-        "Copilot-Integration-Id": "vscode-chat",
-        "Openai-Intent": "conversation-panel",
-        "Content-Type": "application/json",
-    }
+    return {"Authorization": f"Bearer {token}", **auth.COPILOT_HEADERS,
+            "Openai-Intent": "conversation-panel", "Content-Type": "application/json"}
 
 
 def chat(system: str, user: str, model: str | None = None, timeout: int = 180,
@@ -148,6 +149,9 @@ def chat(system: str, user: str, model: str | None = None, timeout: int = 180,
           response_schema: dict | None = None) -> dict:
     configured_model = STAGE_MODELS.get(stage, MODEL_SMART)
     model = model or configured_model
+    if re.search(r'(^|[-_.])sol($|[-_.:])', model or '') and os.environ.get('CONTEXT_TREE_ALLOW_SOL_JUDGE') != '1':
+        # user decision 2026-11-03: no sol models in this project; 2026-11-09: sol allowed only as an evaluation judge on request
+        raise ValueError(f'model {model!r} is not used in this project (sol models are excluded)')
     if reasoning_effort is None and model == configured_model:
         reasoning_effort = STAGE_EFFORTS.get(stage)
     started = time.perf_counter()
@@ -215,7 +219,7 @@ def _chat_stream(system: str, user: str, model: str, timeout: int,
         try:
             _count_request()
             resp = _SESSION.post(
-                "https://api.githubcopilot.com/chat/completions",
+                get_api_base() + "/chat/completions",
                 json=payload, headers=_headers(token),
                 timeout=(10, read_timeout), stream=True,
             )
@@ -246,14 +250,18 @@ def _chat_stream(system: str, user: str, model: str, timeout: int,
             # Arm SIGALRM: fires after no_content_timeout if iter_lines hasn't
             # yielded a content chunk; reset to idle_content_timeout after each.
             _set_alarm(no_content_timeout)
+            done = False
             try:
                 for line in resp.iter_lines(decode_unicode=True):
+                    if done: continue                    # drain the stream's tail: a fully read response returns its connection to the pool
                     if time.monotonic() - t_start >= timeout:
                         raise RuntimeError(f"Stream deadline exceeded ({timeout}s)")
                     if not line: continue
                     if not line.startswith("data:"): continue
                     data_str = line[5:].strip()
-                    if data_str == "[DONE]": break
+                    if data_str == "[DONE]":
+                        if not _DRAIN: break
+                        done = True; continue
                     try:
                         chunk = json.loads(data_str)
                     except json.JSONDecodeError: continue
@@ -273,9 +281,13 @@ def _chat_stream(system: str, user: str, model: str, timeout: int,
                         usage = chunk["usage"]
             except _StreamTimeout:
                 resp.close()
-                if not saw_content:
+                if done: pass                            # the answer was complete; only the tail was not read
+                elif not saw_content:
                     raise RuntimeError(f"stream watchdog: no content for {no_content_timeout}s")
-                raise RuntimeError(f"stream watchdog: idle {idle_content_timeout}s after content")
+                else:
+                    raise RuntimeError(f"stream watchdog: idle {idle_content_timeout}s after content")
+            except requests.exceptions.RequestException:
+                if not done: raise                       # an error while draining after [DONE] loses only the connection
             finally:
                 _set_alarm(0)
                 resp.close()
@@ -330,9 +342,10 @@ _model_cache: dict[str, dict] = {}
 
 
 def list_models(refresh: bool = False) -> list[dict]:
+    token = get_token()
     if refresh or not _model_cache:
-        response = _SESSION.get("https://api.githubcopilot.com/models",
-                                headers=_headers(get_token()), timeout=15)
+        response = _SESSION.get(_cached_api_base + "/models",
+                                headers=_headers(token), timeout=15)
         try:
             response.raise_for_status()
             models = response.json().get("data", [])
@@ -413,7 +426,7 @@ def _chat_responses(system: str, user: str, model: str, timeout: int = 180,
         try:
             _count_request()
             resp = _SESSION.post(
-                "https://api.githubcopilot.com/responses",
+                get_api_base() + "/responses",
                 json=payload, headers=_headers(token),
                 timeout=(10, read_timeout), stream=True,
             )
@@ -442,14 +455,18 @@ def _chat_responses(system: str, user: str, model: str, timeout: int = 180,
             t_start = time.monotonic()
 
             _set_alarm(no_content_timeout)
+            done = False
             try:
                 for line in resp.iter_lines(decode_unicode=True):
+                    if done: continue                    # drain the stream's tail: a fully read response returns its connection to the pool
                     if time.monotonic() - t_start >= timeout:
                         raise RuntimeError(f"Stream deadline exceeded ({timeout}s)")
                     if not line: continue
                     if not line.startswith("data:"): continue
                     data_str = line[5:].strip()
-                    if data_str == "[DONE]": break
+                    if data_str == "[DONE]":
+                        if not _DRAIN: break
+                        done = True; continue
                     try:
                         chunk = json.loads(data_str)
                     except json.JSONDecodeError: continue
@@ -480,9 +497,13 @@ def _chat_responses(system: str, user: str, model: str, timeout: int = 180,
                         raise RuntimeError(f"responses API error: {err.get('message', err)}")
             except _StreamTimeout:
                 resp.close()
-                if not saw_content:
+                if done: pass                            # the answer was complete; only the tail was not read
+                elif not saw_content:
                     raise RuntimeError(f"stream watchdog: no content for {no_content_timeout}s")
-                raise RuntimeError(f"stream watchdog: idle {idle_content_timeout}s after content")
+                else:
+                    raise RuntimeError(f"stream watchdog: idle {idle_content_timeout}s after content")
+            except requests.exceptions.RequestException:
+                if not done: raise                       # an error while draining after [DONE] loses only the connection
             finally:
                 _set_alarm(0)
                 resp.close()
@@ -549,7 +570,7 @@ def _embeddings_one(texts: list[str]) -> list[list[float]]:
         try:
             _count_request()
             resp = _SESSION.post(
-                "https://api.githubcopilot.com/embeddings",
+                get_api_base() + "/embeddings",
                 json=payload, headers=hdrs, timeout=30,
             )
             if resp.status_code == 401:

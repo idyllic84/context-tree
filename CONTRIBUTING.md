@@ -1,40 +1,33 @@
 # Contributing
 
-This repository is a research prototype and its [license is not yet selected](LICENSE-STATUS.md). Confirm contribution and redistribution terms with the maintainer before submitting material for publication.
+This repository is a research prototype under the [MIT License](LICENSE); contributions are accepted under the same license.
 
 ## Keep the problem in focus
 
-The goal is task-structured organization and selective context loading, not a generic memory feature checklist. Explain how a change affects relevant-branch discovery, necessary evidence, irrelevant context, agent reading burden or total cost.
+The goal is a small but sufficient context for each execution, correct localization across sessions and works, and measurable cost
+([goals and method](docs/goals-and-method.zh-CN.md)). Explain how a change affects these, not only whether a mechanism works.
 
-## Work within a stage
+## Work within a block
 
-Each `src/context_tree/stages/<name>/` owns its processor, run contract and evaluation. Put provider calls in `common/llm.py`; do not add private clients or credential discovery to stages. Keep pipeline orchestration separate from the stage algorithm.
+CTM's judgments are divided into blocks ([block interfaces](docs/block-interfaces.zh-CN.md)). A change to one block is evaluated on its own,
+with reference inputs from the blocks upstream; end-to-end runs only find problems. Put model calls in `common/llm.py` (through `ctm2/model.py`);
+do not add private clients or credential discovery elsewhere.
 
-A model comparison must freeze that stage's input and use stage-local expected properties. Do not feed each candidate its own upstream outputs and call the resulting final answer a fair comparison. Report quality before latency; never trade silent information loss for speed.
+A model or prompt comparison freezes the block's input, measures on data not used to find the errors, and counts only what independent
+annotators agree on. Report quality before latency; never trade silent information loss for speed.
 
 ## Before proposing a change
 
 ```sh
 python -m pip install -e .
-context-tree-check
-context-tree-benchmark --offline-check
-python -m context_tree.stages.tree.evaluate --offline-check
+for f in tests/test_*.py; do PYTHONPATH=src python "$f" || exit 1; done
 ```
 
-Add small synthetic fixtures for changed behavior. The project currently uses executable offline checks and independent stage evaluations, not a large mocked pytest suite. Do not call models in CI or while running offline checks.
-
-Paid evaluation is explicit and serial:
-
-```sh
-mkdir -p artifacts
-context-tree-benchmark --allow-network --stages tree \
-  --models MODEL_ID:EFFORT --request-limit 10 --output artifacts/tree-evaluation.json
-```
-
-Replace placeholders with an account-accessible model and supported effort. Record prompt/input hashes, failures, token accounting and latency. Keep private outputs outside version control. Repeats of two fixtures are not four independent examples.
+Offline tests stub the model calls; add a small test for changed behavior. Do not call models in CI or while running offline checks. The browser
+check (`tests/browser_pilot_ui.py`) runs against a copy of a CTM directory ([development](docs/development.md)).
 
 ## Scope and history
 
-Preserve source provenance and document schema changes. Never silently mix legacy and current turn semantics. Use an isolated database for experiments; do not auto-rebuild a user's knowledge base.
-
-Update current documentation when responsibilities or contracts change. Preserve historical documents as history; correct obsolete claims in the current docs rather than pretending they were never made. Do not claim asymptotic search speed, production readiness or model superiority without matching evidence.
+Use a copy of a CTM directory for experiments; do not rebuild a user's memory without asking. Update the design documents when responsibilities
+or contracts change; record superseded approaches and adverse results in [evolution](docs/evolution.zh-CN.md). Do not claim production
+readiness or model superiority without matching evidence.
