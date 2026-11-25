@@ -184,7 +184,7 @@ const ST = {running: 'in progress', paused: 'paused', reported_done: 'done (self
             pending: 'pending', ready: 'ready', proposed: 'proposed', reopened: 'reopened', replaced: 'replaced', done: 'done'};
 const SETTABLE = ['running', 'paused', 'reported_done', 'accepted', 'abandoned', 'reopened'];
 const TO = {existing: 'continue', side: 'question', new: 'new work', research: 'research', control: 'control', ask: 'asks you first', memory: 'remember'};
-const fmt = (t) => t ? new Date(t * 1000).toLocaleString('zh-CN', {hour12: false}) : '';
+const fmt = (t) => t ? new Date(t * 1000).toLocaleString('en-GB', {hour12: false}) : '';
 
 let tree = {nodes: [], current: null, selection: null, pending: []};   // selection: the work the next message is pinned to
 let byId = new Map(), kids = new Map();

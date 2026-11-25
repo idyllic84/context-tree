@@ -22,8 +22,8 @@ No release or PyPI availability is implied by the project name or version. The c
 
 ## Layout
 
-The design is the [CTM concept model](ctm-concept-model.zh-CN.md); which concept items are wired into the running flow is section 2 of the
-[implementation plan](ctm-implementation-plan.zh-CN.md). The history of earlier designs and code is in [evolution](evolution.zh-CN.md).
+The design is the [CTM concept model](ctm-concept-model.md); which concept items are wired into the running flow is section 2 of the
+[implementation plan](ctm-implementation-plan.md). The history of earlier designs and code is in [evolution](evolution.md).
 
 - `src/context_tree/ctm2/`: CTM itself. `store.py` (SQLite items, edges and events with valid time and replacement), `tree.py`, and one module
   per part of the message flow: `ref.py` (pointing and objects), `candidates.py`, `deliver.py`, `remember.py` (memory writes and replacement checks),

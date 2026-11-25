@@ -1,32 +1,32 @@
-# 文档
+# Documentation
 
-## 当前设计
+## Current Design
 
-| 文档 | 内容 |
+| Document | Content |
 |---|---|
-| [CTM概念模型](ctm-concept-model.zh-CN.md) | 权威设计：作为助手的上下文管理器——界面、记忆（根节点、Goal／Task、两种约束、决定与文档）、查询与任务、执行与控制层、规则、场景推演 |
-| [目标与方法](goals-and-method.zh-CN.md) | 要达成什么、怎样衡量、怎样推进（先推理后实验；历史记录用于了解用户习惯，不直接当测试）；第6节是未来方向（私人助理）需要的底层能力与先后顺序 |
-| [技术选型与处理逻辑的演进](evolution.zh-CN.md) | 从Yanmo Companion（2026-04）到现在：每个阶段的记忆形态、处理流程、模型与评估方法，为什么变，留下了什么；清理历史存档前写成，替代存档中的过程材料 |
-| [CTM实现规划](ctm-implementation-plan.zh-CN.md) | 对照概念模型的完整实现步骤：机制链、逐条对照、每步的评估与对下游的影响 |
-| [3–6块的评估与优化计划](blocks-3-6-plan.zh-CN.md) | 记忆写入、执行context、执行者交互、工作状态四块的自评与下一步：先把成对的评估建好，再逐块优化 |
-| [各块的边界与接口](block-interfaces.zh-CN.md) | 9块各自的触发、读写的数据、使用者、必须保证的性质、独立评估的参照输入与代码位置；一次调用产出几块结果的地方 |
+| [CTM Concept Model](ctm-concept-model.md) | Authoritative design: a context manager as an assistant—interface, memory (root node, Goal／Task, two types of constraints, decisions and documents), queries and tasks, execution and control layer, rules, scene walkthroughs |
+| [Goals and Method](goals-and-method.md) | What to achieve, how to measure it, and how to proceed (reasoning before experiments; historical records are used to understand user habits, not directly as tests); Section 6 covers the underlying capabilities and their order of priority for the future direction (personal assistant) |
+| [Evolution of Technology Choices and Processing Logic](evolution.md) | From Yanmo Companion (2026-04) to the present: the form of memory, processing flow, models and evaluation methods at each stage, why they changed, and what remained; written before cleaning up the historical archives to replace process materials in the archives |
+| [CTM Implementation Plan](ctm-implementation-plan.md) | Complete implementation steps mapped to the concept model: mechanism chain, item-by-item comparison, evaluation of each step and its downstream impact |
+| [Evaluation and Optimization Plan for Blocks 3–6](blocks-3-6-plan.md) | Self-evaluation and next steps for four blocks: memory write, execution context, executor interaction, and work status; first establish paired evaluations, then optimize block by block |
+| [Boundaries and Interfaces of the Blocks](block-interfaces.md) | Triggers, data read and written, users, properties that must be guaranteed, reference inputs for independent evaluation, and code locations for each of the 9 blocks; where a single call produces results for multiple blocks |
 
-## 支撑研究
+## Supporting Research
 
-| 文档 | 内容 |
+| Document | Content |
 |---|---|
-| [用户行为模式](user-behavior-patterns.zh-CN.md) | 从历史协作中总结的用户习惯；CTM“对用户的理解”的初始内容 |
-| [Agent回复分析](agent-reply-analysis.zh-CN.md) | 执行者回复里有什么、哪些真正被用到；结果处理与输出约定的依据 |
-| [相关工作调研](related-work.zh-CN.md) | 与编排者、任务树记忆、指令文件、记忆块、context工程、多agent界面等工作的比较与借鉴 |
+| [User Behavior Patterns](user-behavior-patterns.md) | User habits summarized from historical collaboration; the initial content of CTM’s “understanding of the user” |
+| [Agent Reply Analysis](agent-reply-analysis.md) | What executor replies contain and what is actually used; the basis for result processing and output conventions |
+| [Related Work Research](related-work.md) | Comparisons with and lessons drawn from work on orchestrators, task tree memory, instruction files, memory blocks, context engineering, multi-agent interfaces, and more |
 
-## 原型与工具
+## Prototypes and Tools
 
-| 文档 | 内容 |
+| Document | Content |
 |---|---|
-| [CTM实现](ctm-implementation.zh-CN.md) | 按概念模型重写的`src/context_tree/ctm2/`：模块与离线测试 |
-| [认证](authentication.md) | 项目自有的GitHub／Copilot登录工具 |
-| [开发](development.md) | 本地环境、代码布局与检查 |
+| [CTM Implementation](ctm-implementation.md) | `src/context_tree/ctm2/` rewritten according to the concept model: modules and offline tests |
+| [Authentication](authentication.md) | The project’s own GitHub／Copilot login tool |
+| [Development](development.md) | Local environment, code layout, and checks |
 
-## 归档
+## Archives
 
-更早的设计、方向纠正、研究日志与旧流水线已于2026-11-23按用户要求清理，过程与教训见[演进过程](evolution.zh-CN.md)。
+Earlier designs, direction corrections, research logs, and old pipelines were cleaned up on 2026-11-23 at the user’s request. See [Evolution](evolution.md) for the process and lessons learned.

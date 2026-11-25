@@ -1,7 +1,5 @@
 # Context Tree
 
-[中文说明](README.zh-CN.md)
-
 Context Tree is a research project on a **context tree manager (CTM)**: one assistant between a user and the coding agents doing
 the work. The user talks only to CTM, in one continuous conversation, while many works run in parallel. CTM keeps long-term memory
 of the **work** itself, decides which work each message belongs to, and gives every execution a small but sufficient context.
@@ -19,9 +17,8 @@ Agent sessions forget, get replaced and get compacted. CTM keeps continuity outs
 - **Measured block by block.** Each judgment (delivery, memory, context, progress, control, query, maintenance, relay) is
   evaluated on its own with reference inputs.
 
-Status: research prototype for a single user, run locally (developed on Windows). Code, prompts and the page are in English;
-what the models write for you (work titles, summaries, answers) follows the language you write in. The design and evaluation
-records are in Chinese.
+Status: research prototype for a single user, run locally (developed on Windows). Code, prompts, the page and the documents
+are in English; what the models write for you (work titles, summaries, answers) follows the language you write in.
 Licensed under the [MIT License](LICENSE).
 
 ## How it works
@@ -37,8 +34,8 @@ Licensed under the [MIT License](LICENSE).
    become numbered pending items in the conversation.
 7. Periodic maintenance revisits the tree with hindsight (merges, re-parenting, statuses, lifting shared rules).
 
-The full model is [docs/ctm-concept-model.zh-CN.md](docs/ctm-concept-model.zh-CN.md); what is implemented and how each part was
-evaluated is section 2 of [docs/ctm-implementation-plan.zh-CN.md](docs/ctm-implementation-plan.zh-CN.md).
+The full model is [docs/ctm-concept-model.md](docs/ctm-concept-model.md); what is implemented and how each part was
+evaluated is section 2 of [docs/ctm-implementation-plan.md](docs/ctm-implementation-plan.md).
 
 ## Layout
 
@@ -48,7 +45,7 @@ evaluated is section 2 of [docs/ctm-implementation-plan.zh-CN.md](docs/ctm-imple
 | `src/context_tree/pilot/` | The local web page, pi sessions as executors, the vector cache, the import of earlier session history, the usage report |
 | `src/context_tree/common/` | Model transport, credentials, data directory |
 | `tests/` | Offline tests (model calls stubbed) and a browser check |
-| `docs/` | Design, goals and method, implementation status, evaluations, related work, history (Chinese) |
+| `docs/` | Design, goals and method, implementation status, evaluations, related work, history |
 
 ## Requirements
 

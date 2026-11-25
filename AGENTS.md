@@ -1,15 +1,15 @@
 # Context Tree development rules
 
-The project history (earlier designs, research rounds, superseded approaches) is summarized in `docs/evolution.zh-CN.md`, a record
+The project history (earlier designs, research rounds, superseded approaches) is summarized in `docs/evolution.md`, a record
 rather than current instructions; the archives themselves were removed on 2026-11-23.
 
 ## Documents
 
-- Design (authoritative): `docs/ctm-concept-model.zh-CN.md`. Goals, metrics, method and the block-wise optimization plan:
-  `docs/goals-and-method.zh-CN.md`. Implementation status, evaluation results and current model choices:
-  `docs/ctm-implementation-plan.zh-CN.md`. Map: `docs/README.md`.
+- Design (authoritative): `docs/ctm-concept-model.md`. Goals, metrics, method and the block-wise optimization plan:
+  `docs/goals-and-method.md`. Implementation status, evaluation results and current model choices:
+  `docs/ctm-implementation-plan.md`. Map: `docs/README.md`.
 - Mechanisms are described in the concept model, not here. Replace rather than append in design documents; record superseded approaches
-  and adverse results in `docs/evolution.zh-CN.md` and repair links.
+  and adverse results in `docs/evolution.md` and repair links.
 
 ## Design principles
 
@@ -36,7 +36,7 @@ rather than current instructions; the archives themselves were removed on 2026-1
   to decide. Engage critically with the user's proposals. Report in Chinese with conclusions and reasons.
 - Reason first: walk through scenarios looking for missing information, ambiguous judgments and conflicting rules, and re-run the key
   scenarios after each change. Keep layers apart (world model, concepts, mechanisms, evaluation).
-- Optimize CTM block by block (blocks in `docs/goals-and-method.zh-CN.md`): each block has its own inputs, metric and test set, is
+- Optimize CTM block by block (blocks in `docs/goals-and-method.md`): each block has its own inputs, metric and test set, is
   tested with reference inputs from upstream blocks, and changes one thing at a time; check the whole flow end to end occasionally.
 - Run experiments only for what reasoning cannot settle; state the question and which concept a result would change. Keep each run
   under 30 minutes (split or sample larger ones) and report waiting time honestly.
@@ -53,8 +53,8 @@ rather than current instructions; the archives themselves were removed on 2026-1
 
 ## Language
 
-- Code, comments, prompts and the page are in English; text the models write for the user (titles, summaries, answers, memory
-  statements) follows the user's language. Design documents are in Chinese.
+- Code, comments, prompts, the page and the documents are in English; text the models write for the user (titles, summaries,
+  answers, memory statements) follows the user's language.
 
 ## Boundaries
 
